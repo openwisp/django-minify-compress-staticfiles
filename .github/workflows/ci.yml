@@ -3,12 +3,10 @@ name: CI
 on:
   push:
     branches:
-      - main
-      - develop
+      - master
   pull_request:
     branches:
-      - main
-      - develop
+      - master
 
 jobs:
   test:
@@ -55,8 +53,7 @@ jobs:
 
       - name: Run tests
         run: |
-          python runtests.py
-          coverage run --source=django_minify_compress_staticfiles -m pytest tests/ -v
+          coverage run runtests.py
           coverage xml
           coverage report
 
