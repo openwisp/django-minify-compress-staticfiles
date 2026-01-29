@@ -1,6 +1,5 @@
 import os
 import tempfile
-from unittest import mock
 
 from django.test import TestCase, override_settings
 

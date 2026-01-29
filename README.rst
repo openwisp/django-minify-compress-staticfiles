@@ -121,7 +121,7 @@ Dependencies
 - Django >= 4.2
 - Python >= 3.10
 
-**Optional**: 
+**Optional**:
 
 - ``brotli`` >= 1.0.0 (for Brotli compression)
 
@@ -145,4 +145,5 @@ Support
 - `OpenWISP Support`_
 
 .. _issue tracker: https://github.com/openwisp/django-minify-compress-staticfiles/issues
+
 .. _openwisp support: https://openwisp.org/support/
