@@ -1,14 +1,17 @@
 import gzip
 import io
+import json
 import logging
 import os
 from pathlib import Path
 
 import rcssmin
 import rjsmin
-from django.contrib.staticfiles.storage import ManifestFilesMixin
+from django.contrib.staticfiles.storage import (
+    ManifestFilesMixin,
+    StaticFilesStorage,
+)
 from django.core.files.base import ContentFile
-from django.core.files.storage import Storage
 from django.utils.deconstruct import deconstructible
 
 from .conf import DEFAULT_SETTINGS, get_setting
@@ -105,9 +108,16 @@ class MinificationMixin(FileProcessorMixin):
                     file_hash = generate_file_hash(
                         path.encode("utf-8") + minified_content.encode("utf-8")
                     )
-                    minified_path = create_hashed_filename(path, file_hash).replace(
-                        f".{file_type}", f".min.{file_hash}.{file_type}"
-                    )
+                    # Create minified path: dir/name.min.hash.ext
+                    path_obj = Path(path)
+                    parent = path_obj.parent
+                    stem = path_obj.stem
+                    suffix = path_obj.suffix
+                    minified_filename = f"{stem}.min.{file_hash}{suffix}"
+                    if parent and str(parent) != '.':
+                        minified_path = str(parent / minified_filename)
+                    else:
+                        minified_path = minified_filename
 
                     # Save minified content
                     self._write_file_content(
@@ -139,11 +149,19 @@ class CompressionMixin(FileProcessorMixin):
                 content = self._read_file_content(path)
                 if content is None:
                     continue
+
+                # Get relative path for storage operations
+                # If path is absolute, convert to relative
+                if os.path.isabs(path):
+                    relative_path = os.path.basename(path)
+                else:
+                    relative_path = path
+
                 # Process Gzip compression
                 if get_setting(
                     "GZIP_COMPRESSION", DEFAULT_SETTINGS["GZIP_COMPRESSION"]
                 ):
-                    gzipped_path = f"{path}.gz"
+                    gzipped_path = f"{relative_path}.gz"
                     gzipped_content = self.gzip_compress(content)
                     self._write_file_content(
                         gzipped_path, gzipped_content, is_text=False
@@ -156,7 +174,7 @@ class CompressionMixin(FileProcessorMixin):
                     )
                     and brotli
                 ):
-                    brotli_path = f"{path}.br"
+                    brotli_path = f"{relative_path}.br"
                     brotli_content = self.brotli_compress(content)
                     self._write_file_content(brotli_path, brotli_content, is_text=False)
                     compressed_files.setdefault(path, []).append(brotli_path)
@@ -227,7 +245,7 @@ class CompressionMixin(FileProcessorMixin):
 
 @deconstructible
 class MinicompressStorage(
-    ManifestFilesMixin, MinificationMixin, CompressionMixin, Storage
+    MinificationMixin, CompressionMixin, ManifestFilesMixin, StaticFilesStorage
 ):
     """Main storage class combining all minification and compression functionality."""
 
@@ -236,20 +254,39 @@ class MinicompressStorage(
 
     def post_process(self, paths, dry_run=False, **options):
         """Post-process collected static files."""
+        # First, let the parent classes do their work (creates manifest with hashed names)
+        all_post_processed = list(super().post_process(paths, dry_run=dry_run, **options))
+        
+        # Yield all the results from parent
+        for item in all_post_processed:
+            yield item
+        
         if dry_run:
             return
-        # Process minification first
-        minified_files = self.process_minification(paths.keys())
+        
+        # Get the list of processed paths from parent results
+        # Each item is (original_path, processed_path, processed)
+        processed_paths = []
+        for item in all_post_processed:
+            if len(item) >= 2 and item[0]:
+                processed_paths.append(item[0])
+        
+        # If no paths from post_process, use original paths
+        if not processed_paths:
+            processed_paths = list(paths.keys())
+        
+        # Process minification
+        minified_files = self.process_minification(processed_paths)
+        
         # Update paths to include minified files for compression
-        all_paths = list(paths.keys()) + list(minified_files.values())
+        all_paths = processed_paths + list(minified_files.values())
+        
         # Process compression
         self.process_compression(all_paths)
+        
         # Update manifest with minified file paths
-        if hasattr(self, "manifest") and minified_files:
+        if hasattr(self, "hashed_files") and minified_files:
             self._update_manifest(minified_files)
-        # Yield processed files for Django's collectstatic
-        for path in paths:
-            yield path, None, None
 
     def _update_manifest(self, minified_files):
         """Update manifest with minified file paths."""
@@ -257,8 +294,6 @@ class MinicompressStorage(
             # Read existing manifest
             if hasattr(self, "exists") and self.exists(self.manifest_name):
                 with self.open(self.manifest_name) as f:
-                    import json
-
                     manifest = json.load(f)
             else:
                 manifest = {}

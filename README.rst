@@ -52,7 +52,20 @@ If you need brotli compression:
 Configuration
 -------------
 
-Update your static files storage:
+For **Django 4.2+**, update your ``STORAGES`` setting:
+
+.. code-block:: python
+
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django_minify_compress_staticfiles.storage.MinicompressStorage",
+        },
+    }
+
+For **Django < 4.2**, use the legacy setting:
 
 .. code-block:: python
 
