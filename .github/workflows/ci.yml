@@ -54,6 +54,7 @@ jobs:
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
         run: |
           coverage run runtests.py
+          coverage combine
           coverage xml
           coverage report
 
