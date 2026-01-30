@@ -11,19 +11,33 @@ from .conf import DEFAULT_SETTINGS, get_setting
 logger = logging.getLogger(__name__)
 
 
-def generate_file_hash(file_path, length=12):
-    """Generate MD5 hash of file content."""
+def generate_file_hash(content_or_path, length=12):
+    """Generate MD5 hash of file content or raw bytes.
+
+
+    Returns:
+        A hex string of the specified length
+    """
     try:
-        with open(file_path, "rb") as f:
-            return hashlib.md5(f.read()).hexdigest()[:length]
+        if isinstance(content_or_path, bytes):
+            # Direct content hash
+            return hashlib.md5(content_or_path).hexdigest()[:length]
+        elif isinstance(content_or_path, str):
+            # File path - read and hash
+            with open(content_or_path, "rb") as f:
+                return hashlib.md5(f.read()).hexdigest()[:length]
+        else:
+            logger.error(f"Unsupported type for hash generation: {type(content_or_path)}")
+            return ""
     except (OSError, IOError) as e:
-        logger.error(f"Failed to generate hash for {file_path}: {e}")
+        logger.error(f"Failed to generate hash for {content_or_path}: {e}")
         return ""
 
 
 def create_hashed_filename(original_path, hash_value):
     """Create filename with hash inserted before extension."""
     path = Path(original_path)
+    parent = path.parent
     stem = path.stem
     suffix = path.suffix
 
@@ -32,7 +46,11 @@ def create_hashed_filename(original_path, hash_value):
     if re.search(hash_pattern, stem):
         stem = re.sub(hash_pattern, "", stem)
 
-    return f"{stem}.{hash_value}{suffix}"
+    new_filename = f"{stem}.{hash_value}{suffix}"
+    # Preserve directory structure
+    if parent and str(parent) != '.':
+        return str(parent / new_filename)
+    return new_filename
 
 
 def normalize_extension(extension):
@@ -116,4 +134,11 @@ class FileManager:
     def is_compression_candidate(self, file_path):
         """Check if file is candidate for compression (size check)."""
         min_size = getattr(self, "min_file_size", None) or 200
+        # Try to get full path from storage first
+        if hasattr(self.storage, 'path'):
+            try:
+                full_path = self.storage.path(file_path)
+                return get_file_size(full_path) >= min_size
+            except Exception:
+                pass
         return get_file_size(file_path) >= min_size
