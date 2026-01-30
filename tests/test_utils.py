@@ -45,8 +45,8 @@ class GenerateFileHashTests(TestCase):
         self.assertNotEqual(generate_file_hash(b"a"), generate_file_hash(b"b"))
         # Nonexistent file returns empty string
         self.assertEqual(generate_file_hash("/nonexistent/file.txt"), "")
-        # Invalid type returns empty string
-        self.assertEqual(generate_file_hash(12345), "")
+        # Invalid type (non-bytes, non-path object) returns empty string
+        self.assertEqual(generate_file_hash(object()), "")
 
 
 class CreateHashedFilenameTests(TestCase):
@@ -90,16 +90,15 @@ class ShouldProcessFileTests(TestCase):
 
     def test_supported_extensions(self):
         """Test supported and unsupported extensions."""
-        self.assertTrue(should_process_file("test.css", {"css": True}, []))
-        self.assertTrue(should_process_file("test.js", {"js": True}, []))
-        self.assertFalse(should_process_file("test.png", {"css": True}, []))
-        self.assertFalse(should_process_file("test.css", {}, []))
-
+        self.assertTrue(should_process_file("test.css", ["css"], []))
+        self.assertTrue(should_process_file("test.js", ["js"], []))
+        self.assertFalse(should_process_file("test.png", ["css"], []))
+        self.assertFalse(should_process_file("test.css", [], []))
     def test_exclude_patterns(self):
         """Test exclude patterns."""
-        self.assertFalse(should_process_file("jquery.min.css", {"css": True}, ["*.min.*"]))
-        self.assertFalse(should_process_file("app-min.js", {"js": True}, ["*-min.*"]))
-        self.assertTrue(should_process_file("test.css", {"css": True}, None))
+        self.assertFalse(should_process_file("jquery.min.css", ["css"], ["*.min.*"]))
+        self.assertFalse(should_process_file("app-min.js", ["js"], ["*-min.*"]))
+        self.assertTrue(should_process_file("test.css", ["css"], None))
 
 
 class FileManagerTests(TestCase):

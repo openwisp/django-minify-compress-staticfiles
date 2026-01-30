@@ -151,9 +151,16 @@ class CompressionMixin(FileProcessorMixin):
                     continue
 
                 # Get relative path for storage operations
-                # If path is absolute, convert to relative
+                # If path is absolute, convert to a relative path while preserving directory structure
                 if os.path.isabs(path):
-                    relative_path = os.path.basename(path)
+                    path_obj = Path(path)
+                    parts = path_obj.parts
+                    # parts[0] is the root/drive (e.g., "/" or "C:\\"); join the remaining parts
+                    if len(parts) > 1:
+                        relative_path = os.path.join(*parts[1:])
+                    else:
+                        # Fallback: if for some reason there are no extra parts, use the basename
+                        relative_path = os.path.basename(path)
                 else:
                     relative_path = path
 

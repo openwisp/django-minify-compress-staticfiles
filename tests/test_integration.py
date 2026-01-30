@@ -8,12 +8,6 @@ from django.test import TestCase, override_settings
 
 from django_minify_compress_staticfiles.storage import MinicompressStorage
 
-try:
-    import brotli  # noqa: F401
-    HAS_BROTLI = True
-except ImportError:
-    HAS_BROTLI = False
-
 
 class IntegrationTests(TestCase):
     """End-to-end integration tests."""
