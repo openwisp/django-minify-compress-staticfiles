@@ -12,12 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 def generate_file_hash(content_or_path, length=12):
-    """Generate MD5 hash of file content or raw bytes.
+    """Generate MD5 hash of file content or raw bytes."""
 
-
-    Returns:
-        A hex string of the specified length
-    """
     try:
         if isinstance(content_or_path, bytes):
             # Direct content hash
