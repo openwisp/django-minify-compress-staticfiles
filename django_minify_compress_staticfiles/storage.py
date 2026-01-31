@@ -149,7 +149,6 @@ class CompressionMixin(FileProcessorMixin):
                 content = self._read_file_content(path)
                 if content is None:
                     continue
-
                 # Get relative path for storage operations
                 # If path is absolute, convert to a relative path while preserving directory structure
                 if os.path.isabs(path):
@@ -163,7 +162,6 @@ class CompressionMixin(FileProcessorMixin):
                         relative_path = os.path.basename(path)
                 else:
                     relative_path = path
-
                 # Process Gzip compression
                 if get_setting(
                     "GZIP_COMPRESSION", DEFAULT_SETTINGS["GZIP_COMPRESSION"]
@@ -263,14 +261,11 @@ class MinicompressStorage(
         """Post-process collected static files."""
         # First, let the parent classes do their work (creates manifest with hashed names)
         all_post_processed = list(super().post_process(paths, dry_run=dry_run, **options))
-        
         # Yield all the results from parent
         for item in all_post_processed:
             yield item
-        
         if dry_run:
             return
-        
         # Get the list of processed paths from parent results
         # Each item is (original_path, processed_path, processed)
         processed_paths = []
@@ -281,16 +276,12 @@ class MinicompressStorage(
         # If no paths from post_process, use original paths
         if not processed_paths:
             processed_paths = list(paths.keys())
-        
         # Process minification
         minified_files = self.process_minification(processed_paths)
-        
         # Update paths to include minified files for compression
         all_paths = processed_paths + list(minified_files.values())
-        
         # Process compression
         self.process_compression(all_paths)
-        
         # Update manifest with minified file paths
         if hasattr(self, "hashed_files") and minified_files:
             self._update_manifest(minified_files)
