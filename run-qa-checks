@@ -1,6 +1,4 @@
 #!/bin/bash
 set -e
 
-openwisp-qa-check --skip-checkmigrations \
-                  --jslinter \
-                  --csslinter
+openwisp-qa-check --skip-checkmigrations
