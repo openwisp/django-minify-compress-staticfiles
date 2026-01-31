@@ -3,13 +3,10 @@
 import os
 import tempfile
 
-from django.test import TestCase, override_settings
+from django.core.files.storage import FileSystemStorage
+from django.test import TestCase
 
-from django_minify_compress_staticfiles.utils import (
-    FileManager,
-    is_safe_path,
-    should_process_file,
-)
+from django_minify_compress_staticfiles.utils import is_safe_path, should_process_file
 
 
 class IsSafePathEdgeCaseTests(TestCase):
@@ -83,7 +80,6 @@ class ShouldProcessFileEdgeCaseTests(TestCase):
         """Test with more complex exclude patterns."""
         extensions = ["css"]
         patterns = ["*.min.*", "*-min.*", "*.bundle.css", "vendor.css"]
-
         # Note: pattern matching is simple and has limitations
         self.assertFalse(should_process_file("app.bundle.css", extensions, patterns))
         self.assertFalse(should_process_file("vendor.css", extensions, patterns))
@@ -101,8 +97,6 @@ class FileManagerEdgeCaseTests(TestCase):
 
     def test_supported_extensions_with_none(self):
         """Test FileManager when supported_extensions is None."""
-        from django.core.files.storage import FileSystemStorage
-
         storage = FileSystemStorage()
 
         class TestFileManager:
@@ -116,7 +110,6 @@ class FileManagerEdgeCaseTests(TestCase):
                 return True
 
         manager = TestFileManager()
-
         # Should handle None gracefully
         extensions = getattr(manager, "supported_extensions", None) or {}
         self.assertIsNone(extensions.get("css"))

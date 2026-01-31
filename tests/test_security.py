@@ -13,7 +13,6 @@ from django.test import TestCase, override_settings
 
 from django_minify_compress_staticfiles.storage import (
     CompressionMixin,
-    FileProcessorMixin,
     MinicompressStorage,
     MinificationMixin,
 )

@@ -142,8 +142,6 @@ class FileManagerTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        from django.core.files.storage import FileSystemStorage
-
         self.storage = FileSystemStorage()
         self.manager = FileManager(self.storage)
 
