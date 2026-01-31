@@ -15,6 +15,8 @@ from django_minify_compress_staticfiles.storage import (
 )
 
 try:
+    import brotli
+
     HAS_BROTLI = True
 except ImportError:
     HAS_BROTLI = False
