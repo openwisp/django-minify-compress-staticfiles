@@ -179,6 +179,58 @@ class MinificationMixinTests(TestCase):
         # Should not create a minified version since size wouldn't decrease
         self.assertEqual(result, {})
 
+    def test_minified_filename_single_hash(self):
+        """Test that minified files have exactly one hash, not two.
+
+        When Django's ManifestFilesMixin processes a file, it adds a hash:
+        notifications.js -> notifications.f70142e76f9c.js
+
+        When we minify it, we should strip the old hash and add a new one:
+        notifications.f70142e76f9c.js -> notifications.min.a4df3c64d341.js
+
+        NOT: notifications.f70142e76f9c.min.395266215c27.js (double hash)
+        """
+        # Create a CSS file that mimics Django's hashed filename format
+        test_file = os.path.join(
+            self.minifier.temp_dir, "notifications.f70142e76f9c.js"
+        )
+        with open(test_file, "w") as f:
+            f.write("function test() {\n    console.log('hello');\n}" * 20)
+
+        result = self.minifier.process_minification(["notifications.f70142e76f9c.js"])
+
+        # Should have one result
+        self.assertEqual(len(result), 1)
+
+        # Get the minified filename
+        minified_path = result["notifications.f70142e76f9c.js"]
+
+        # The filename should have exactly one hash (12 hex chars)
+        # Pattern: name.min.12hexchars.ext
+        # Wrong patterns to avoid:
+        #   - name.12hexchars.min.12hexchars.ext (double hash)
+        #   - name.min.12hexchars.min.12hexchars.ext (triple hash)
+
+        filename = os.path.basename(minified_path)
+
+        # Count hash patterns (12 hex chars)
+        import re
+
+        hash_count = len(re.findall(r"\.[a-f0-9]{12}", filename))
+
+        self.assertEqual(
+            hash_count,
+            1,
+            f"Minified file should have exactly one hash, found {hash_count} in: {filename}",
+        )
+
+        # Verify the pattern is correct: notifications.min.{hash}.js
+        self.assertRegex(
+            filename,
+            r"^notifications\.min\.[a-f0-9]{12}\.js$",
+            f"Filename should match 'notifications.min.{{hash}}.js', got: {filename}",
+        )
+
     def test_process_minification_with_directory(self):
         """Test minification preserves directory structure."""
         os.makedirs(os.path.join(self.minifier.temp_dir, "css"), exist_ok=True)

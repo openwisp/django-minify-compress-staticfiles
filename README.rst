@@ -29,7 +29,9 @@ Features
 - **Django Integration**: Seamless integration with Django's static file
   system
 - **Selective Processing**: Only processes appropriate file types
-- **Hashed Filenames**: Maintains Django's manifest system
+- **Single Hash Filenames**: Creates clean minified filenames like
+  ``name.min.{hash}.ext`` (strips Django's original hash, adds new hash
+  based on minified content)
 - **Configurable**: Fine-grained control over processing options
 
 Installation
@@ -192,10 +194,10 @@ exponential CPU and disk space consumption.
 Integrity & Cache Validation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-File fingerprinting utilizes **SHA-256** hashing. While the primary use
-case is robust cache invalidation (versioning), SHA-256 was chosen over
-MD5 or SHA-1 to provide a collision-resistant mechanism that meets modern
-security compliance standards.
+File fingerprinting uses **MD5** hashing to match Django's
+``ManifestFilesMixin`` algorithm. This ensures consistency between
+Django's hashed filenames and our minified filenames, allowing the
+manifest to correctly map original files to their minified versions.
 
 Recommended Settings for Production
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -120,11 +120,17 @@ class MinificationMixin(FileProcessorMixin):
                     )
                     file_hash = generate_file_hash(path_bytes + content_bytes)
                     # Create minified path: dir/name.min.hash.ext
+                    # Split path to get base name without Django's hash
+                    # Input: notifications.f70142e76f9c.js
+                    # Output: notifications.min.{new_hash}.js
                     path_obj = Path(path)
                     parent = path_obj.parent
                     stem = path_obj.stem
                     suffix = path_obj.suffix
-                    minified_filename = f"{stem}.min.{file_hash}{suffix}"
+                    # Get base name (first part before any dots)
+                    # This strips any existing hash added by ManifestFilesMixin
+                    base_name = stem.split(".")[0]
+                    minified_filename = f"{base_name}.min.{file_hash}{suffix}"
                     if parent and str(parent) != ".":
                         minified_path = str(parent / minified_filename)
                     else:

@@ -37,11 +37,14 @@ def validate_file_size(file_size):
 
 
 def generate_file_hash(content_or_path, length=12):
-    """Generate SHA-256 hash of file content or raw bytes."""
+    """Generate MD5 hash of file content or raw bytes.
+
+    Uses MD5 to match Django's ManifestFilesMixin hash algorithm.
+    """
     try:
         if isinstance(content_or_path, bytes):
             # Direct content hash
-            return hashlib.sha256(content_or_path).hexdigest()[:length]
+            return hashlib.md5(content_or_path).hexdigest()[:length]
         elif isinstance(content_or_path, (str, os.PathLike)):
             # File path - read and hash (supports str and pathlib.Path)
             file_path = os.fspath(content_or_path)
@@ -54,7 +57,7 @@ def generate_file_hash(content_or_path, length=12):
                 if len(content) > max_size:
                     logger.warning(f"File too large for hashing, skipping: {file_path}")
                     return ""
-                return hashlib.sha256(content).hexdigest()[:length]
+                return hashlib.md5(content).hexdigest()[:length]
         else:
             logger.error(
                 f"Unsupported type for hash generation: {type(content_or_path)}"
