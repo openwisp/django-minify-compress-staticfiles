@@ -23,7 +23,7 @@ wheels/
 MANIFEST
 
 .pytest_cache/
-.coverage
+.coverage*
 htmlcov/
 .tox/
 .env
