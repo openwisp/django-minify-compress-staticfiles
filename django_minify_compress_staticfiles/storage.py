@@ -272,7 +272,6 @@ class MinicompressStorage(
         for item in all_post_processed:
             if len(item) >= 2 and item[0]:
                 processed_paths.append(item[0])
-        
         # If no paths from post_process, use original paths
         if not processed_paths:
             processed_paths = list(paths.keys())
