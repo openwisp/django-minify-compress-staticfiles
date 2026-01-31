@@ -17,9 +17,10 @@ def generate_file_hash(content_or_path, length=12):
         if isinstance(content_or_path, bytes):
             # Direct content hash
             return hashlib.md5(content_or_path).hexdigest()[:length]
-        elif isinstance(content_or_path, str):
-            # File path - read and hash
-            with open(content_or_path, "rb") as f:
+        elif isinstance(content_or_path, (str, os.PathLike)):
+            # File path - read and hash (supports str and pathlib.Path)
+            file_path = os.fspath(content_or_path)
+            with open(file_path, "rb") as f:
                 return hashlib.md5(f.read()).hexdigest()[:length]
         else:
             logger.error(
