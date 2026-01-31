@@ -27,7 +27,7 @@ def generate_file_hash(content_or_path, length=12):
             )
             return ""
     except (OSError, IOError) as e:
-        logger.error(f"Failed to generate hash for {content_or_path}: {e}")
+        logger.exception(f"Failed to generate hash for {content_or_path}")
         return ""
 
 
@@ -132,6 +132,6 @@ class FileManager:
             try:
                 full_path = self.storage.path(file_path)
                 return get_file_size(full_path) >= min_size
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Could not resolve storage path for {file_path}: {e}")
         return get_file_size(file_path) >= min_size
