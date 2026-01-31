@@ -26,7 +26,7 @@ def generate_file_hash(content_or_path, length=12):
                 f"Unsupported type for hash generation: {type(content_or_path)}"
             )
             return ""
-    except (OSError, IOError) as e:
+    except (OSError, IOError):
         logger.exception(f"Failed to generate hash for {content_or_path}")
         return ""
 
