@@ -26,8 +26,8 @@ setup(
         "brotli": [
             "brotli>=1.0.0",
         ],
-        "qa": [
-            "openwisp-utils[qa]~=1.2.2",
+        "test": [
+            "openwisp-utils[test]~=1.2.2",
         ],
     },
     classifiers=[
