@@ -18,9 +18,7 @@ Django Minify Compress StaticFiles
     :alt: License
 
 A modern Django package for minifying and compressing static files during
-``collectstatic``. This package provides a drop-in replacement for
-unmaintained static file compression solutions with feature parity and
-improved maintainability.
+``collectstatic`` with minimal configuration.
 
 Features
 --------
