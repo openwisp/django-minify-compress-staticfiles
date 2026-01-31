@@ -29,9 +29,10 @@ Features
 - **Django Integration**: Seamless integration with Django's static file
   system
 - **Selective Processing**: Only processes appropriate file types
-- **Single Hash Filenames**: Creates clean minified filenames like
-  ``name.min.{hash}.ext`` (strips Django's original hash, adds new hash
-  based on minified content)
+- **Minified Filename Format**: Preserves Django's hash and adds ``.min``
+  before the extension: ``name.{hash}.min.ext``. This allows precompressed
+  files to be properly served as ``name.{hash}.min.ext.gz`` and
+  ``name.{hash}.min.ext.br``.
 - **Configurable**: Fine-grained control over processing options
 
 Installation
