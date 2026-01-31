@@ -12,9 +12,11 @@ DEFAULT_SETTINGS = {
     "BROTLI_COMPRESSION": True,
     "GZIP_COMPRESSION": True,
     "MIN_FILE_SIZE": 200,
-    "COMPRESSION_LEVEL_GZIP": 9,
-    "COMPRESSION_LEVEL_BROTLI": 11,
+    "MAX_FILE_SIZE": 10485760,
+    "COMPRESSION_LEVEL_GZIP": 6,
+    "COMPRESSION_LEVEL_BROTLI": 4,
     "PRESERVE_COMMENTS": True,
+    "MAX_FILES_PER_RUN": 1000,
     "SUPPORTED_EXTENSIONS": {
         "css": True,
         "js": True,
@@ -30,5 +32,8 @@ DEFAULT_SETTINGS = {
     "EXCLUDE_PATTERNS": [
         "*.min.*",
         "*-min.*",
+        "*.gz",
+        "*.br",
+        "*.zip",
     ],
 }

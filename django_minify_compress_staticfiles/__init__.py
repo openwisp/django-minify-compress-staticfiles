@@ -8,7 +8,7 @@ VERSION = (1, 0, 0, "final")
 __version__ = VERSION  # alias
 
 
-def get_version():
+def get_version():  # pragma: no cover
     version = "%s.%s" % (VERSION[0], VERSION[1])
     if VERSION[2]:
         version = "%s.%s" % (version, VERSION[2])

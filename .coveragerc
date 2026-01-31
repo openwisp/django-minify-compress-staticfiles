@@ -7,6 +7,7 @@ omit =
     */__init__.py
     */migrations/*
     */tests/*
+    django_minify_compress_staticfiles/__init__.py
 
 [report]
 show_missing = True

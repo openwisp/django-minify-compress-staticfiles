@@ -39,8 +39,9 @@ class DefaultSettingsTests(TestCase):
 
         # Numeric settings
         self.assertEqual(DEFAULT_SETTINGS["MIN_FILE_SIZE"], 200)
-        self.assertEqual(DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"], 9)
-        self.assertEqual(DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"], 11)
+        self.assertEqual(DEFAULT_SETTINGS["MAX_FILE_SIZE"], 10485760)
+        self.assertEqual(DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"], 6)
+        self.assertEqual(DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"], 4)
 
     def test_supported_extensions(self):
         """Test SUPPORTED_EXTENSIONS has required types."""

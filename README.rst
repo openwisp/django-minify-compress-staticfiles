@@ -83,14 +83,42 @@ All settings use the ``MINICOMPRESS_`` prefix:
 ``MINICOMPRESS_MIN_FILE_SIZE``
     Minimum file size for compression in bytes (default: ``200``)
 
+``MINICOMPRESS_MAX_FILE_SIZE``
+    Maximum file size for processing in bytes (default: ``10485760``,
+    i.e., 10MB) Files larger than this are skipped to prevent memory
+    exhaustion. Adjust based on your available memory and security
+    requirements.
+
+``MINICOMPRESS_MAX_FILES_PER_RUN``
+    Maximum number of files to process per ``collectstatic`` run (default:
+    ``1000``) Prevents CPU and memory exhaustion when processing large
+    numbers of files. Increase only if you have verified your system can
+    handle it.
+
 ``MINICOMPRESS_COMPRESSION_LEVEL_GZIP``
-    Gzip compression level (default: ``9``)
+    Gzip compression level (default: ``6``, range: 0-9) Level 6 provides a
+    good balance between compression ratio and CPU usage. Higher values
+    (8-9) consume significantly more CPU with diminishing returns. Lower
+    values (0-5) are faster but produce larger compressed files.
 
 ``MINICOMPRESS_COMPRESSION_LEVEL_BROTLI``
-    Brotli compression quality (default: ``11``)
+    Brotli compression quality (default: ``4``, range: 0-11) Level 4
+    offers excellent compression with reasonable CPU usage. Higher values
+    (8-11) can cause severe CPU spikes during ``collectstatic``. Lower
+    values (0-3) are faster but less effective compression.
 
 ``MINICOMPRESS_PRESERVE_COMMENTS``
     Preserve bang comments in CSS/JS (default: ``True``)
+
+``MINICOMPRESS_SUPPORTED_EXTENSIONS``
+    Dictionary of file extensions to process (default: css, js, txt, xml,
+    json, svg, md, rst, html, htm)
+
+``MINICOMPRESS_EXCLUDE_PATTERNS``
+    List of glob patterns to exclude from processing (default:
+    ``["*.min.*", "*-min.*", "*.gz", "*.br", "*.zip"]``) Pre-compressed
+    files (e.g., ``.gz``, ``.br``, ``.zip``) are excluded by default to
+    prevent double-compression and security issues.
 
 Usage
 -----
@@ -117,6 +145,56 @@ Supported File Types
 
 Files matching ``*.min.*`` or ``*-min.*`` patterns are excluded from
 processing.
+
+Security Considerations
+-----------------------
+
+The package includes several security features to protect against common
+attacks:
+
+**Path Traversal Protection**
+    All file paths are validated to prevent directory traversal attacks.
+    Files outside the static root directory cannot be read or written.
+
+**Memory Exhaustion Prevention**
+    ``MAX_FILE_SIZE`` limits the maximum file size that will be processed,
+    preventing attackers from causing memory exhaustion with extremely
+    large files.
+
+**CPU Exhaustion Prevention**
+    Compression levels and file processing limits prevent CPU exhaustion
+    attacks. Default compression values (Gzip: 6, Brotli: 4) provide good
+    performance without causing excessive CPU usage.
+
+**Compression Bomb Protection**
+    Already compressed files (e.g., ``.gz``, ``.br``, ``.zip``) are
+    excluded from processing by default to prevent recursive compression
+    that could cause CPU exhaustion.
+
+**SHA-256 Hashing**
+    File hashes use SHA-256 instead of MD5 for better security, though
+    this is primarily for cache invalidation rather than cryptographic
+    security.
+
+Recommended Settings for Production
+-----------------------------------
+
+For production deployments with high security requirements:
+
+.. code-block:: python
+
+    MINICOMPRESS_MAX_FILE_SIZE = 2097152  # 2MB
+    MINICOMPRESS_MAX_FILES_PER_RUN = 500
+    MINICOMPRESS_COMPRESSION_LEVEL_GZIP = 6
+    MINICOMPRESS_COMPRESSION_LEVEL_BROTLI = 4
+
+For development environments with faster builds:
+
+.. code-block:: python
+
+    MINICOMPRESS_COMPRESSION_LEVEL_GZIP = 1
+    MINICOMPRESS_COMPRESSION_LEVEL_BROTLI = 0
+    MINICOMPRESS_BROTLI_COMPRESSION = False  # Disable for faster builds
 
 Dependencies
 ------------
