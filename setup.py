@@ -21,11 +21,9 @@ setup(
     install_requires=[
         "rjsmin>=1.2.0",
         "rcssmin>=1.1.0",
+        "brotli>=1.0.0",
     ],
     extras_require={
-        "brotli": [
-            "brotli>=1.0.0",
-        ],
         "test": [
             "openwisp-utils[test]~=1.2.2",
         ],

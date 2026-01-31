@@ -43,12 +43,6 @@ Install from PyPI:
 
     pip install django-minify-compress-staticfiles
 
-If you need brotli compression:
-
-.. code-block:: bash
-
-    pip install django-minify-compress-staticfiles[brotli]
-
 Configuration
 -------------
 
@@ -133,10 +127,9 @@ Dependencies
 
 - Django >= 4.2
 - Python >= 3.10
-
-**Optional**:
-
-- ``brotli`` >= 1.0.0 (for Brotli compression)
+- ``brotli`` >= 1.0.0
+- ``rjsmin`` >= 1.2.0
+- ``rcssmin`` >= 1.1.0
 
 License
 -------
