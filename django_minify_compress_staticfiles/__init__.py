@@ -4,7 +4,7 @@ A Django package for minifying and compressing static files with modern
 tooling.
 """
 
-VERSION = (1, 0, 0, "final")
+VERSION = (1, 1, 0, "final")
 __version__ = VERSION  # alias
 
 
