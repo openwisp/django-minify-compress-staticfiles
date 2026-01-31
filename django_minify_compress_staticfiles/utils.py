@@ -11,17 +11,50 @@ from .conf import DEFAULT_SETTINGS, get_setting
 logger = logging.getLogger(__name__)
 
 
+def is_safe_path(path, base_dir=None):
+    """Validate path is safe and doesn't traverse outside base directory."""
+    if not path:
+        return False
+    path = os.path.normpath(path)
+    if path.startswith("..") or "/../" in path or "\\" in path:
+        return False
+    if base_dir:
+        abs_path = os.path.abspath(path)
+        abs_base = os.path.abspath(base_dir)
+        try:
+            rel_path = os.path.relpath(abs_path, abs_base)
+        except ValueError:
+            return False
+        if rel_path.startswith(".."):
+            return False
+    return True
+
+
+def validate_file_size(file_size):
+    """Validate file size doesn't exceed maximum limit."""
+    max_size = get_setting("MAX_FILE_SIZE", DEFAULT_SETTINGS["MAX_FILE_SIZE"])
+    return file_size <= max_size
+
+
 def generate_file_hash(content_or_path, length=12):
-    """Generate MD5 hash of file content or raw bytes."""
+    """Generate SHA-256 hash of file content or raw bytes."""
     try:
         if isinstance(content_or_path, bytes):
             # Direct content hash
-            return hashlib.md5(content_or_path).hexdigest()[:length]
+            return hashlib.sha256(content_or_path).hexdigest()[:length]
         elif isinstance(content_or_path, (str, os.PathLike)):
             # File path - read and hash (supports str and pathlib.Path)
             file_path = os.fspath(content_or_path)
+            max_size = (
+                get_setting("MAX_FILE_SIZE", DEFAULT_SETTINGS["MAX_FILE_SIZE"])
+                or 10485760
+            )
             with open(file_path, "rb") as f:
-                return hashlib.md5(f.read()).hexdigest()[:length]
+                content = f.read(max_size + 1)
+                if len(content) > max_size:
+                    logger.warning(f"File too large for hashing, skipping: {file_path}")
+                    return ""
+                return hashlib.sha256(content).hexdigest()[:length]
         else:
             logger.error(
                 f"Unsupported type for hash generation: {type(content_or_path)}"

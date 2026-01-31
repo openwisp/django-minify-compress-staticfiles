@@ -13,7 +13,7 @@ from django.core.files.base import ContentFile
 from django.utils.deconstruct import deconstructible
 
 from .conf import DEFAULT_SETTINGS, get_setting
-from .utils import FileManager, generate_file_hash
+from .utils import FileManager, generate_file_hash, is_safe_path
 
 logger = logging.getLogger(__name__)
 
@@ -47,22 +47,28 @@ class FileProcessorMixin:
         """Minify file content based on type."""
         if file_type == "css" and rcssmin:
             try:
+                preserve_comments = get_setting(
+                    "PRESERVE_COMMENTS", DEFAULT_SETTINGS["PRESERVE_COMMENTS"]
+                )
+                if preserve_comments is None:
+                    preserve_comments = True
                 return rcssmin.cssmin(
                     content,
-                    keep_bang_comments=get_setting(
-                        "PRESERVE_COMMENTS", DEFAULT_SETTINGS["PRESERVE_COMMENTS"]
-                    ),
+                    keep_bang_comments=bool(preserve_comments),
                 )
             except Exception as e:
                 logger.error(f"CSS minification failed for {file_type}: {e}")
                 return content
         elif file_type == "js" and rjsmin:
             try:
+                preserve_comments = get_setting(
+                    "PRESERVE_COMMENTS", DEFAULT_SETTINGS["PRESERVE_COMMENTS"]
+                )
+                if preserve_comments is None:
+                    preserve_comments = True
                 return rjsmin.jsmin(
                     content,
-                    keep_bang_comments=get_setting(
-                        "PRESERVE_COMMENTS", DEFAULT_SETTINGS["PRESERVE_COMMENTS"]
-                    ),
+                    keep_bang_comments=bool(preserve_comments),
                 )
             except Exception as e:
                 logger.error(f"JS minification failed: {e}")
@@ -78,8 +84,16 @@ class MinificationMixin(FileProcessorMixin):
         if not get_setting("MINIFY_FILES", DEFAULT_SETTINGS["MINIFY_FILES"]):
             return {}
         minified_files = {}
+        max_files = (
+            get_setting("MAX_FILES_PER_RUN", DEFAULT_SETTINGS["MAX_FILES_PER_RUN"])
+            or 1000
+        )
+        processed_count = 0
 
         for path in paths:
+            if processed_count >= max_files:
+                logger.warning(f"Reached maximum file processing limit ({max_files})")
+                break
             if not self.should_process_minification(path):
                 continue
             try:
@@ -98,9 +112,13 @@ class MinificationMixin(FileProcessorMixin):
                 # Only save if minification reduced size
                 if len(minified_content) < len(content):
                     # Generate hash and new filename
-                    file_hash = generate_file_hash(
-                        path.encode("utf-8") + minified_content.encode("utf-8")
+                    path_bytes = path.encode("utf-8") if isinstance(path, str) else path
+                    content_bytes = (
+                        minified_content.encode("utf-8")
+                        if isinstance(minified_content, str)
+                        else minified_content
                     )
+                    file_hash = generate_file_hash(path_bytes + content_bytes)
                     # Create minified path: dir/name.min.hash.ext
                     path_obj = Path(path)
                     parent = path_obj.parent
@@ -117,6 +135,7 @@ class MinificationMixin(FileProcessorMixin):
                         minified_path, minified_content, is_text=True
                     )
                     minified_files[path] = minified_path
+                    processed_count += 1
             except Exception as e:
                 logger.error(f"Failed to minify {path}: {e}")
                 continue
@@ -134,8 +153,16 @@ class CompressionMixin(FileProcessorMixin):
         ):
             return {}
         compressed_files = {}
+        max_files = (
+            get_setting("MAX_FILES_PER_RUN", DEFAULT_SETTINGS["MAX_FILES_PER_RUN"])
+            or 1000
+        )
+        processed_count = 0
 
         for path in paths:
+            if processed_count >= max_files:
+                logger.warning(f"Reached maximum file processing limit ({max_files})")
+                break
             if not self.should_process_compression(path):
                 continue
             try:
@@ -173,6 +200,7 @@ class CompressionMixin(FileProcessorMixin):
                     brotli_content = self.brotli_compress(content)
                     self._write_file_content(brotli_path, brotli_content, is_text=False)
                     compressed_files.setdefault(path, []).append(brotli_path)
+                processed_count += 1
             except Exception as e:
                 logger.error(f"Failed to compress {path}: {e}")
                 continue
@@ -180,19 +208,40 @@ class CompressionMixin(FileProcessorMixin):
 
     def _read_file_content(self, path):
         """Read file content using available storage methods."""
+        if not is_safe_path(path):
+            logger.warning(f"Skipping unsafe path: {path}")
+            return None
+        max_size = (
+            get_setting("MAX_FILE_SIZE", DEFAULT_SETTINGS["MAX_FILE_SIZE"]) or 10485760
+        )
         # Try storage methods first
         if hasattr(self, "exists") and hasattr(self, "open"):
             if self.exists(path):
                 with self.open(path) as f:
-                    return f.read()
+                    content = f.read()
+                    if isinstance(content, bytes) and len(content) > max_size:
+                        logger.warning(f"File too large, skipping: {path}")
+                        return None
+                    return content
         # Fallback to local filesystem
         if os.path.exists(path):
-            with open(path, "rb") as f:
-                return f.read()
+            try:
+                file_size = os.path.getsize(path)
+                if file_size > max_size:
+                    logger.warning(f"File too large, skipping: {path}")
+                    return None
+                with open(path, "rb") as f:
+                    return f.read()
+            except OSError as e:
+                logger.error(f"Failed to read file {path}: {e}")
+                return None
         return None
 
     def _write_file_content(self, path, content, is_text=True):
         """Write file content using available storage methods."""
+        if not is_safe_path(path):
+            logger.warning(f"Skipping unsafe path for writing: {path}")
+            return
         if hasattr(self, "save") and ContentFile is not None:
             mode = "w" if is_text else "wb"
             self.save(path, ContentFile(content))
@@ -202,6 +251,10 @@ class CompressionMixin(FileProcessorMixin):
                 full_path = self.path(path)
             else:
                 full_path = path
+            # Additional safety check for directory creation
+            if not is_safe_path(full_path):
+                logger.warning(f"Skipping unsafe path for writing: {full_path}")
+                return
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
             mode = "w" if is_text else "wb"
             encoding = "utf-8" if is_text else None
@@ -215,8 +268,10 @@ class CompressionMixin(FileProcessorMixin):
             get_setting(
                 "COMPRESSION_LEVEL_GZIP", DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"]
             )
-            or 9
+            or 6
         )
+        # Clamp level to valid range (0-9)
+        level = max(0, min(9, level))
         with gzip.GzipFile(fileobj=buffer, mode="wb", compresslevel=level) as gz_file:
             if isinstance(content, str):
                 content = content.encode("utf-8")
@@ -229,8 +284,10 @@ class CompressionMixin(FileProcessorMixin):
             get_setting(
                 "COMPRESSION_LEVEL_BROTLI", DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"]
             )
-            or 11
+            or 4
         )
+        # Clamp level to valid range (0-11)
+        level = max(0, min(11, level))
         if isinstance(content, str):
             content = content.encode("utf-8")
         return brotli.compress(content, quality=level)

@@ -107,8 +107,9 @@ class BasicTests(TestCase):
         self.assertEqual(DEFAULT_SETTINGS["GZIP_COMPRESSION"], True)
         self.assertEqual(DEFAULT_SETTINGS["BROTLI_COMPRESSION"], True)
         self.assertEqual(DEFAULT_SETTINGS["MIN_FILE_SIZE"], 200)
-        self.assertEqual(DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"], 9)
-        self.assertEqual(DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"], 11)
+        self.assertEqual(DEFAULT_SETTINGS["MAX_FILE_SIZE"], 10485760)
+        self.assertEqual(DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"], 6)
+        self.assertEqual(DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"], 4)
         self.assertEqual(DEFAULT_SETTINGS["PRESERVE_COMMENTS"], True)
 
     def test_storage_class_structure(self):

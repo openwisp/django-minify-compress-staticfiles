@@ -3,6 +3,7 @@
 import os
 import tempfile
 
+from django.core.files.storage import FileSystemStorage
 from django.test import TestCase
 
 from django_minify_compress_staticfiles.utils import (
@@ -10,8 +11,10 @@ from django_minify_compress_staticfiles.utils import (
     create_hashed_filename,
     generate_file_hash,
     get_file_size,
+    is_safe_path,
     normalize_extension,
     should_process_file,
+    validate_file_size,
 )
 
 
@@ -48,6 +51,19 @@ class GenerateFileHashTests(TestCase):
         # Invalid type (non-bytes, non-path object) returns empty string
         self.assertEqual(generate_file_hash(object()), "")
 
+    def test_hash_large_file(self):
+        """Test that large files are skipped during hashing."""
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
+            # Write a very large file
+            f.write(b"x" * (11 * 1024 * 1024))  # 11MB
+            temp_path = f.name
+        try:
+            # Should return empty string for files exceeding MAX_FILE_SIZE
+            result = generate_file_hash(temp_path)
+            self.assertEqual(result, "")
+        finally:
+            os.unlink(temp_path)
+
 
 class CreateHashedFilenameTests(TestCase):
     """Tests for create_hashed_filename function."""
@@ -62,6 +78,13 @@ class CreateHashedFilenameTests(TestCase):
         result = create_hashed_filename("css/main/style.css", "abc123def456")
         self.assertIn("css/main/", result)
         self.assertIn("abc123def456", result)
+
+    def test_filename_hash_replacement(self):
+        """Test that existing hash is replaced with new one."""
+        # File with existing hash should have it replaced
+        result = create_hashed_filename("style.abc123def456.css", "xyz789uvw012")
+        self.assertEqual(result, "style.xyz789uvw012.css")
+        self.assertNotIn("abc123def456", result)
 
 
 class UtilityFunctionsTests(TestCase):
@@ -101,14 +124,24 @@ class ShouldProcessFileTests(TestCase):
         self.assertFalse(should_process_file("app-min.js", ["js"], ["*-min.*"]))
         self.assertTrue(should_process_file("test.css", ["css"], None))
 
+    def test_exclude_patterns_wildcard_suffix(self):
+        """Test wildcard pattern matching with suffix."""
+        # Pattern starting with * and matching suffix
+        self.assertFalse(should_process_file("app.bundle.js", ["js"], ["*.bundle.js"]))
+        self.assertTrue(should_process_file("app.js", ["js"], ["*.bundle.js"]))
+
+    def test_exclude_patterns_plain_suffix(self):
+        """Test plain suffix pattern matching."""
+        # Plain suffix pattern (no wildcard)
+        self.assertFalse(should_process_file("app.min.css", ["css"], [".min.css"]))
+        self.assertTrue(should_process_file("app.css", ["css"], [".min.css"]))
+
 
 class FileManagerTests(TestCase):
     """Tests for FileManager class."""
 
     def setUp(self):
         """Set up test fixtures."""
-        from django.core.files.storage import FileSystemStorage
-
         self.storage = FileSystemStorage()
         self.manager = FileManager(self.storage)
 
@@ -137,3 +170,55 @@ class FileManagerTests(TestCase):
         finally:
             os.unlink(large_path)
             os.unlink(small_path)
+
+
+class IsSafePathTests(TestCase):
+    """Tests for is_safe_path function."""
+
+    def test_empty_path(self):
+        """Test empty path returns False."""
+        self.assertFalse(is_safe_path(""))
+        self.assertFalse(is_safe_path(None))
+
+    def test_path_traversal(self):
+        """Test path traversal detection."""
+        self.assertFalse(is_safe_path("../etc/passwd"))
+        self.assertFalse(is_safe_path("foo/../../etc/passwd"))
+        self.assertFalse(is_safe_path("foo\\bar"))  # Windows-style backslash
+
+    def test_safe_path(self):
+        """Test safe paths are allowed."""
+        self.assertTrue(is_safe_path("style.css"))
+        self.assertTrue(is_safe_path("css/main/style.css"))
+        self.assertTrue(is_safe_path("./style.css"))
+
+    def test_path_with_base_dir(self):
+        """Test path validation with base directory."""
+        # Create a temporary directory as base
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as base:
+            # Create a file inside the base directory
+            safe_file = os.path.join(base, "style.css")
+            with open(safe_file, "w") as f:
+                f.write("content")
+            # File within base_dir should be safe
+            self.assertTrue(is_safe_path(safe_file, base_dir=base))
+            # Path outside base_dir should not be safe
+            outside_path = "/etc/passwd"
+            self.assertFalse(is_safe_path(outside_path, base_dir=base))
+
+
+class ValidateFileSizeTests(TestCase):
+    """Tests for validate_file_size function."""
+
+    def test_size_within_limit(self):
+        """Test valid file sizes."""
+        self.assertTrue(validate_file_size(100))
+        self.assertTrue(validate_file_size(0))
+
+    def test_size_exceeds_limit(self):
+        """Test file size exceeding limit."""
+        # MAX_FILE_SIZE is set to a reasonable default
+        # Testing with a very large value
+        self.assertFalse(validate_file_size(100 * 1024 * 1024))  # 100MB
