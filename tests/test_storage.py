@@ -209,13 +209,11 @@ class MinificationMixinTests(TestCase):
             test_file = os.path.join(self.minifier.temp_dir, f"style{i}.css")
             with open(test_file, "w") as f:
                 f.write(f"body{{margin:{i}}} " * 50)
-
         # Process with a low limit
         from django_minify_compress_staticfiles.conf import DEFAULT_SETTINGS
 
         original_max = DEFAULT_SETTINGS.get("MAX_FILES_PER_RUN", 1000)
         DEFAULT_SETTINGS["MAX_FILES_PER_RUN"] = 2
-
         try:
             paths = [f"style{i}.css" for i in range(5)]
             result = self.minifier.process_minification(paths)
@@ -262,11 +260,9 @@ class CompressionMixinTests(TestCase):
         test_file = os.path.join(self.compressor.temp_dir, "large.css")
         with open(test_file, "w") as f:
             f.write("body { margin: 0; }" * 100)
-
         # Use absolute path
         abs_path = os.path.abspath(test_file)
         result = self.compressor.process_compression([abs_path])
-
         # Should create compressed files
         self.assertIn(abs_path, result)
         self.assertTrue(any(path.endswith(".gz") for path in result[abs_path]))
@@ -276,7 +272,6 @@ class CompressionMixinTests(TestCase):
         test_file = os.path.join(self.compressor.temp_dir, "test.txt")
         with open(test_file, "w") as f:
             f.write("test content")
-
         # Read using fallback
         content = self.compressor._read_file_content(test_file)
         self.assertEqual(content, b"test content")
@@ -318,15 +313,12 @@ class MinicompressStorageTests(TestCase):
         """Test post_process yields processed paths."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-
             # Create a test file
             test_file = os.path.join(self.static_root, "test.css")
             with open(test_file, "w") as f:
                 f.write("body { margin: 0; }")
-
             paths = {"test.css": (storage, "test.css")}
             results = list(storage.post_process(paths, dry_run=False))
-
             self.assertEqual(len(results), 1)
             self.assertEqual(results[0][0], "test.css")
 
@@ -334,12 +326,10 @@ class MinicompressStorageTests(TestCase):
         """Test post_process uses original paths when parent yields empty results."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-
             # Create a large CSS file that will be minified
             test_file = os.path.join(self.static_root, "style.css")
             with open(test_file, "w") as f:
                 f.write("body {\n    margin: 0;\n    padding: 0;\n}" * 20)
-
             # Use empty dict for paths - forces fallback to use original paths
             paths = {}
             results = list(storage.post_process(paths, dry_run=False))
@@ -350,12 +340,10 @@ class MinicompressStorageTests(TestCase):
         """Test that post_process handles manifest operations."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-
             # Create a CSS file
             test_file = os.path.join(self.static_root, "style.css")
             with open(test_file, "w") as f:
                 f.write("body { margin: 0; }" * 20)
-
             paths = {"style.css": (storage, "style.css")}
             # Should complete without errors
             results = list(storage.post_process(paths, dry_run=False))
@@ -365,12 +353,10 @@ class MinicompressStorageTests(TestCase):
         """Test that minification errors are caught and logged."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-
             # Create a CSS file
             test_file = os.path.join(self.static_root, "style.css")
             with open(test_file, "w") as f:
                 f.write("body { margin: 0; }" * 20)
-
             # Mock the minify_file_content to raise an exception
             original_minify = storage.minify_file_content
 
@@ -390,12 +376,10 @@ class MinicompressStorageTests(TestCase):
         """Test _read_file_content respects MAX_FILE_SIZE setting."""
         with self.settings(STATIC_ROOT=self.static_root, MINICOMPRESS_MAX_FILE_SIZE=10):
             storage = MinicompressStorage()
-
             # Create a file larger than the limit
             test_file = os.path.join(self.static_root, "large.css")
             with open(test_file, "w") as f:
                 f.write("x" * 100)
-
             # Should return None for files exceeding size limit
             content = storage._read_file_content("large.css")
             self.assertIsNone(content)
@@ -404,7 +388,6 @@ class MinicompressStorageTests(TestCase):
         """Test _write_file_content skips unsafe paths."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-
             # Try to write to an unsafe path (with path traversal)
             storage._write_file_content("../unsafe.txt", "content", is_text=True)
             # Should not create the file
@@ -418,12 +401,10 @@ class MinicompressStorageTests(TestCase):
         """Test that compression errors are caught and logged."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-
             # Create a CSS file
             test_file = os.path.join(self.static_root, "style.css")
             with open(test_file, "w") as f:
                 f.write("body { margin: 0; }" * 50)
-
             # Mock gzip_compress to raise an exception
             original_gzip = storage.gzip_compress
 
@@ -431,7 +412,6 @@ class MinicompressStorageTests(TestCase):
                 raise Exception("Test gzip error")
 
             storage.gzip_compress = mock_gzip_error
-
             try:
                 result = storage.process_compression(["style.css"])
                 # Should complete without crashing, even if empty
@@ -443,15 +423,12 @@ class MinicompressStorageTests(TestCase):
         """Test dry_run prevents minification and compression."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-
             # Create a CSS file large enough to be minified
             test_file = os.path.join(self.static_root, "style.css")
             with open(test_file, "w") as f:
                 f.write("body {\n    margin: 0;\n    padding: 0;\n}" * 50)
-
             paths = {"style.css": (storage, "style.css")}
             list(storage.post_process(paths, dry_run=True))
-
             # Check that no minified files were created
             for filename in os.listdir(self.static_root):
                 self.assertNotIn(".min.", filename)
@@ -462,16 +439,13 @@ class MinicompressStorageTests(TestCase):
         """Test brotli compression with absolute path."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-
             # Create a large CSS file
             test_file = os.path.join(self.static_root, "style.css")
             with open(test_file, "w") as f:
                 f.write("body { margin: 0; }" * 100)
-
             # Use absolute path
             abs_path = os.path.abspath(test_file)
             result = storage.process_compression([abs_path])
-
             # Should create brotli compressed file
             self.assertIn(abs_path, result)
             self.assertTrue(any(path.endswith(".br") for path in result[abs_path]))
@@ -482,12 +456,10 @@ class MinicompressStorageTests(TestCase):
             STATIC_ROOT=self.static_root, MINICOMPRESS_MINIFY_FILES=False
         ):
             storage = MinicompressStorage()
-
             # Create a CSS file
             test_file = os.path.join(self.static_root, "style.css")
             with open(test_file, "w") as f:
                 f.write("body { margin: 0; }" * 50)
-
             # Should return empty dict when disabled
             result = storage.process_minification(["style.css"])
             self.assertEqual(result, {})
@@ -496,7 +468,6 @@ class MinicompressStorageTests(TestCase):
         """Test minification handles None content."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-
             # Try to minify a file that doesn't exist (will return None from _read_file_content)
             result = storage.process_minification(["nonexistent.css"])
             self.assertEqual(result, {})
@@ -505,10 +476,8 @@ class MinicompressStorageTests(TestCase):
         """Test manifest update handles errors gracefully."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-
             # Create a minified files dict
             minified_files = {"style.css": "style.min.abc123.css"}
-
             # Mock save to raise an exception
             original_save = storage.save
 
@@ -516,7 +485,6 @@ class MinicompressStorageTests(TestCase):
                 raise Exception("Manifest save error")
 
             storage.save = mock_save_error
-
             try:
                 # Should not raise an exception
                 storage._update_manifest(minified_files)
