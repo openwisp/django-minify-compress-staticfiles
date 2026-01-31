@@ -5,8 +5,8 @@ Django Minify Compress StaticFiles
     :target: https://github.com/openwisp/django-minify-compress-staticfiles/actions
     :alt: CI build status
 
-.. image:: https://coveralls.io/repos/github/openwisp/django-minify-compress-staticfiles/badge.svg?branch=main
-    :target: https://coveralls.io/github/openwisp/django-minify-compress-staticfiles?branch=main
+.. image:: https://coveralls.io/repos/github/openwisp/django-minify-compress-staticfiles/badge.svg?branch=master
+    :target: https://coveralls.io/github/openwisp/django-minify-compress-staticfiles?branch=master
     :alt: Coverage
 
 .. image:: https://badge.fury.io/py/django-minify-compress-staticfiles.svg
