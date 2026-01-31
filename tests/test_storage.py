@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 
+import brotli
 from django.test import TestCase
 
 from django_minify_compress_staticfiles.storage import (
@@ -13,13 +14,6 @@ from django_minify_compress_staticfiles.storage import (
     MinicompressStorage,
     MinificationMixin,
 )
-
-try:
-    import brotli
-
-    HAS_BROTLI = True
-except ImportError:
-    HAS_BROTLI = False
 
 
 class MockStorage:
@@ -142,16 +136,11 @@ class CompressionMixinTests(TestCase):
 
     def test_brotli_compress(self):
         """Test brotli compression."""
-        if not HAS_BROTLI:
-            self.skipTest("Brotli not installed")
-
         content = "Hello World! " * 100
         compressed = self.compressor.brotli_compress(content)
         self.assertIsInstance(compressed, bytes)
         self.assertLess(len(compressed), len(content))
         # Verify decompression
-        import brotli  # noqa: F811
-
         self.assertEqual(brotli.decompress(compressed).decode("utf-8"), content)
 
 

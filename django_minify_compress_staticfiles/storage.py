@@ -14,10 +14,7 @@ from django.utils.deconstruct import deconstructible
 from .conf import DEFAULT_SETTINGS, get_setting
 from .utils import FileManager, create_hashed_filename, generate_file_hash
 
-try:
-    import brotli
-except ImportError:
-    brotli = None
+import brotli
 
 logger = logging.getLogger(__name__)
 
@@ -170,11 +167,8 @@ class CompressionMixin(FileProcessorMixin):
                     )
                     compressed_files.setdefault(path, []).append(gzipped_path)
                 # Process Brotli compression
-                if (
-                    get_setting(
-                        "BROTLI_COMPRESSION", DEFAULT_SETTINGS["BROTLI_COMPRESSION"]
-                    )
-                    and brotli
+                if get_setting(
+                    "BROTLI_COMPRESSION", DEFAULT_SETTINGS["BROTLI_COMPRESSION"]
                 ):
                     brotli_path = f"{relative_path}.br"
                     brotli_content = self.brotli_compress(content)
@@ -232,8 +226,6 @@ class CompressionMixin(FileProcessorMixin):
 
     def brotli_compress(self, content):
         """Compress content using brotli."""
-        if not brotli:
-            return None
         level = (
             get_setting(
                 "COMPRESSION_LEVEL_BROTLI", DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"]
