@@ -23,17 +23,11 @@ class IsSafePathEdgeCaseTests(TestCase):
 
     def test_is_safe_path_different_drives(self):
         """Test is_safe_path with paths on different drives (Windows)."""
-        # On Linux/Unix, this won't apply, but the test should still pass
-        # by handling the ValueError that occurs when paths are on different drives
-        try:
-            result = is_safe_path(r"D:\file.txt", base_dir=r"C:\base")
-            # On Unix, this will just treat them as paths
-            # On Windows with different drives, relpath raises ValueError
-            self.assertFalse(result)
-        except ValueError:
-            # This is expected on Windows with different drives
-            # The function should handle this
-            pass
+        # is_safe_path should handle different drives gracefully (return False or handle ValueError)
+        # This test verifies it doesn't raise an unhandled exception
+        result = is_safe_path(r"D:\file.txt", base_dir=r"C:\base")
+        # On both Unix and Windows, cross-drive paths should be rejected
+        self.assertFalse(result)
 
     def test_is_safe_path_symlinks(self):
         """Test that symlinks are handled correctly."""

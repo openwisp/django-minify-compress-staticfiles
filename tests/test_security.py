@@ -19,10 +19,6 @@ from django_minify_compress_staticfiles.storage import (
 from django_minify_compress_staticfiles.utils import FileManager, is_safe_path
 
 
-class SecurityTests(TestCase):
-    """Tests for security features."""
-
-
 class _TestableSecurityMinification(MinificationMixin, CompressionMixin):
     """Testable version for security tests."""
 
@@ -391,8 +387,6 @@ class ManifestUpdateTests(TestCase):
             self.assertIn("existing.css", manifest)
             self.assertNotIn("new.css", manifest)
 
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
 
 class OSExceptionHandlingTests(TestCase):
     """Tests for OSError handling in file operations."""
@@ -408,14 +402,12 @@ class OSExceptionHandlingTests(TestCase):
         # Test the fallback path that uses os.path.getsize (lines 227-238)
         # We need to mock storage methods to return False
         original_exists = self.processor.exists
-        original_open = self.processor.open
 
-        def mock_exists(path):
+        def mock_exists(_path):
             # Return False to force fallback to filesystem
             return False
 
         self.processor.exists = mock_exists
-
         try:
             # Create a file in the temp dir
             test_file = os.path.join(self.processor.temp_dir, "test.txt")
@@ -428,7 +420,6 @@ class OSExceptionHandlingTests(TestCase):
                 self.assertIsNone(result)
         finally:
             self.processor.exists = original_exists
-            self.processor.open = original_open
 
 
 class BinaryFileHandlingTests(TestCase):
