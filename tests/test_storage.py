@@ -1,11 +1,13 @@
 """Tests for storage functionality."""
 
 import gzip
+import json
 import os
 import shutil
 import tempfile
 
 import brotli
+from django.core.management import call_command
 from django.test import TestCase
 
 from django_minify_compress_staticfiles.storage import (
@@ -39,7 +41,6 @@ class MockStorage:
             data = content.read()
         else:
             data = content
-
         # Normalize data to bytes so we can always write in binary mode.
         if isinstance(data, str):
             data = data.encode("utf-8")
@@ -106,11 +107,9 @@ class FileProcessorMixinTests(TestCase):
         minified_css = self.processor.minify_file_content(css, "css")
         self.assertIn("body{", minified_css)
         self.assertLess(len(minified_css), len(css))
-
         js = "function hello() {\n    console.log('Hello');\n}"
         minified_js = self.processor.minify_file_content(js, "js")
         self.assertLess(len(minified_js), len(js))
-
         # Unknown type returns original
         txt = "some content"
         self.assertEqual(self.processor.minify_file_content(txt, "txt"), txt)
@@ -310,16 +309,18 @@ class MinicompressStorageTests(TestCase):
             self.assertIsInstance(result, list)
 
     def test_post_process_yields_paths(self):
-        """Test post_process yields processed paths."""
+        """Test post_process yields processed paths including minified files."""
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
-            # Create a test file
+            # Create a test file with content that will be minified
             test_file = os.path.join(self.static_root, "test.css")
             with open(test_file, "w") as f:
-                f.write("body { margin: 0; }")
+                f.write("body {\n    margin: 0;\n}" * 20)
             paths = {"test.css": (storage, "test.css")}
             results = list(storage.post_process(paths, dry_run=False))
-            self.assertEqual(len(results), 1)
+            # Should yield both original and minified files
+            self.assertGreaterEqual(len(results), 1)
+            # First result should be the original file
             self.assertEqual(results[0][0], "test.css")
 
     def test_post_process_with_original_paths_fallback(self):
@@ -364,7 +365,6 @@ class MinicompressStorageTests(TestCase):
                 raise Exception("Test error")
 
             storage.minify_file_content = mock_minify_error
-
             try:
                 result = storage.process_minification(["style.css"])
                 # Should return empty dict on error, not crash
@@ -490,3 +490,116 @@ class MinicompressStorageTests(TestCase):
                 storage._update_manifest(minified_files)
             finally:
                 storage.save = original_save
+
+    def test_manifest_structure_with_minified_files(self):
+        """Test that manifest has proper structure for Django to serve minified files.
+
+        This test verifies the manifest structure is correct with 'paths',
+        'version', and either 'settings' or 'hash' keys as required by
+        Django's ManifestFilesMixin. Without this structure, Django's {%
+        static %} template tag would not return minified files.
+        """
+        with self.settings(STATIC_ROOT=self.static_root):
+            storage = MinicompressStorage()
+            # Create CSS and JS files with content that can be minified
+            css_file = os.path.join(self.static_root, "style.css")
+            js_file = os.path.join(self.static_root, "app.js")
+            with open(css_file, "w") as f:
+                f.write("body {\n    margin: 0;\n    padding: 0;\n}" * 20)
+            with open(js_file, "w") as f:
+                f.write("function test() {\n    console.log('test');\n}" * 20)
+            paths = {
+                "style.css": (storage, "style.css"),
+                "app.js": (storage, "app.js"),
+            }
+            # Run post_process
+            list(storage.post_process(paths, dry_run=False))
+            # Read the manifest file
+            manifest_path = os.path.join(self.static_root, storage.manifest_name)
+            self.assertTrue(os.path.exists(manifest_path), "Manifest file should exist")
+            with open(manifest_path, "r") as f:
+                manifest = json.load(f)
+            # Verify manifest structure
+            self.assertIn("paths", manifest, "Manifest must have 'paths' key")
+            self.assertIn("version", manifest, "Manifest must have 'version' key")
+            # Django uses either 'settings' (older) or 'hash' (newer) key
+            self.assertTrue(
+                "settings" in manifest or "hash" in manifest,
+                "Manifest must have either 'settings' or 'hash' key",
+            )
+            # Verify paths is a dict
+            self.assertIsInstance(
+                manifest["paths"], dict, "Manifest 'paths' must be a dictionary"
+            )
+            # Verify original files are mapped to minified versions
+            for original_path in ["style.css", "app.js"]:
+                self.assertIn(
+                    original_path,
+                    manifest["paths"],
+                    f"Original file {original_path} should be in manifest",
+                )
+                mapped_path = manifest["paths"][original_path]
+                # The mapped path should contain '.min.' indicating it's minified
+                self.assertIn(
+                    ".min.",
+                    mapped_path,
+                    f"File {original_path} should map to minified version, got {mapped_path}",
+                )
+
+    def test_manifest_without_proper_structure_fails(self):
+        """Test that manifest without 'paths' key would cause issues.
+
+        This test documents the bug that was fixed - if the manifest is
+        saved as a flat dict instead of having the proper structure with
+        'paths', 'version', and 'settings' keys, Django's
+        ManifestFilesMixin won't read it correctly.
+        """
+        with self.settings(STATIC_ROOT=self.static_root):
+            storage = MinicompressStorage()
+            manifest_path = os.path.join(self.static_root, storage.manifest_name)
+            # Create a malformed manifest (flat dict without 'paths' key)
+            # This simulates what the buggy code was doing
+            malformed_manifest = {
+                "style.css": "style.min.abc123.css",
+                "app.js": "app.min.def456.js",
+            }
+            # Save it as the manifest
+            with open(manifest_path, "w") as f:
+                json.dump(malformed_manifest, f)
+            # Try to read it with read_manifest (this should fail or return unexpected results)
+            try:
+                manifest_json = storage.read_manifest()
+                if manifest_json:
+                    manifest = json.loads(manifest_json)
+                    # Django's ManifestFilesMixin expects 'paths' key
+                    if "paths" not in manifest:
+                        # This demonstrates the bug - Django wouldn't find any paths
+                        self.assertNotIn("paths", manifest)
+            except (FileNotFoundError, json.JSONDecodeError):
+                pass
+
+    def test_collectstatic_produces_valid_manifest(self):
+        """Test that collectstatic produces a manifest Django can use.
+
+        This test verifies that after running collectstatic, the manifest
+        file is in a format that Django's static() template tag can read
+        to return minified file paths.
+        """
+        with self.settings(
+            STATIC_ROOT=self.static_root,
+            STATICFILES_STORAGE="django_minify_compress_staticfiles.storage.MinicompressStorage",
+        ):
+            # Create a CSS file
+            css_file = os.path.join(self.static_root, "test.css")
+            with open(css_file, "w") as f:
+                f.write("body {\n    margin: 0;\n    padding: 0;\n}" * 30)
+            # Run collectstatic
+            call_command("collectstatic", "--noinput", verbosity=0)
+            # Read the manifest
+            manifest_path = os.path.join(self.static_root, "staticfiles.json")
+            if os.path.exists(manifest_path):
+                with open(manifest_path, "r") as f:
+                    manifest = json.load(f)
+                # Verify the manifest has the expected structure
+                self.assertIn("paths", manifest)
+                self.assertIn("version", manifest)

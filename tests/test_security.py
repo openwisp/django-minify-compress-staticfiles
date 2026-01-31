@@ -302,46 +302,6 @@ class UnsafePathTests(TestCase):
         # Should not write file
         self.assertEqual(self.processor.saved_files, {})
 
-    def test_write_file_without_save_method(self):
-        """Test _write_file_content fallback when save method doesn't exist."""
-
-        # Create a processor without save method
-        class NoSaveStorage(CompressionMixin):
-            def __init__(self, temp_dir=None):
-                self.temp_dir = temp_dir or tempfile.mkdtemp()
-                self.saved_files = {}
-                self.file_manager = FileManager(self)
-
-            def exists(self, path):
-                return path in self.saved_files or os.path.exists(
-                    os.path.join(self.temp_dir, path)
-                )
-
-            def open(self, path, mode="rb"):
-                full_path = os.path.join(self.temp_dir, path)
-                return open(full_path, mode)
-
-            def path(self, name):
-                return os.path.join(self.temp_dir, name)
-
-            def cleanup(self):
-                shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-        processor = NoSaveStorage()
-
-        try:
-            # Write a file
-            test_path = os.path.join(processor.temp_dir, "test.txt")
-            os.makedirs(os.path.dirname(test_path), exist_ok=True)
-
-            # This should use fallback path (lines 250-262)
-            processor._write_file_content("test.txt", b"test content", is_text=False)
-
-            # File should be created via fallback
-            self.assertTrue(os.path.exists(test_path))
-        finally:
-            processor.cleanup()
-
 
 class FileManagerExtensionTests(TestCase):
     """Tests for FileManager with different extension types."""

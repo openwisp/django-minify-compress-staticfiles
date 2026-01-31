@@ -207,7 +207,7 @@ class CompressionMixin(FileProcessorMixin):
         return compressed_files
 
     def _read_file_content(self, path):
-        """Read file content using available storage methods."""
+        """Read file content using storage methods."""
         if not is_safe_path(path):
             logger.warning(f"Skipping unsafe path: {path}")
             return None
@@ -215,14 +215,13 @@ class CompressionMixin(FileProcessorMixin):
             get_setting("MAX_FILE_SIZE", DEFAULT_SETTINGS["MAX_FILE_SIZE"]) or 10485760
         )
         # Try storage methods first
-        if hasattr(self, "exists") and hasattr(self, "open"):
-            if self.exists(path):
-                with self.open(path) as f:
-                    content = f.read()
-                    if isinstance(content, bytes) and len(content) > max_size:
-                        logger.warning(f"File too large, skipping: {path}")
-                        return None
-                    return content
+        if self.exists(path):
+            with self.open(path) as f:
+                content = f.read()
+                if isinstance(content, bytes) and len(content) > max_size:
+                    logger.warning(f"File too large, skipping: {path}")
+                    return None
+                return content
         # Fallback to local filesystem
         if os.path.exists(path):
             try:
@@ -238,28 +237,11 @@ class CompressionMixin(FileProcessorMixin):
         return None
 
     def _write_file_content(self, path, content, is_text=True):
-        """Write file content using available storage methods."""
+        """Write file content using storage methods."""
         if not is_safe_path(path):
             logger.warning(f"Skipping unsafe path for writing: {path}")
             return
-        if hasattr(self, "save") and ContentFile is not None:
-            mode = "w" if is_text else "wb"
-            self.save(path, ContentFile(content))
-        else:
-            # Fallback to local filesystem
-            if hasattr(self, "path"):
-                full_path = self.path(path)
-            else:
-                full_path = path
-            # Additional safety check for directory creation
-            if not is_safe_path(full_path):
-                logger.warning(f"Skipping unsafe path for writing: {full_path}")
-                return
-            os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            mode = "w" if is_text else "wb"
-            encoding = "utf-8" if is_text else None
-            with open(full_path, mode, encoding=encoding) as f:
-                f.write(content)
+        self.save(path, ContentFile(content))
 
     def gzip_compress(self, content):
         """Compress content using gzip."""
@@ -299,57 +281,93 @@ class MinicompressStorage(
 ):
     """Main storage class combining all minification and compression functionality."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def post_process(self, paths, dry_run=False, **options):
         """Post-process collected static files."""
         # First, let the parent classes do their work (creates manifest with hashed names)
-        all_post_processed = list(
-            super().post_process(paths, dry_run=dry_run, **options)
-        )
-        # Yield all the results from parent
-        for item in all_post_processed:
-            yield item
+        yield from super().post_process(paths, dry_run=dry_run, **options)
         if dry_run:
             return
-        # Get the list of processed paths from parent results
-        # Each item is (original_path, processed_path, processed)
+        # Get the list of processed paths from the manifest or use original paths
+        # Read manifest to get processed (hashed) paths
         processed_paths = []
-        for item in all_post_processed:
-            if len(item) >= 2 and item[0]:
-                processed_paths.append(item[0])
-        # If no paths from post_process, use original paths
+        try:
+            if hasattr(self, "read_manifest"):
+                manifest_json = self.read_manifest()
+                if manifest_json:
+                    manifest = json.loads(manifest_json)
+                    processed_paths = list(manifest.get("paths", {}).values())
+        except Exception:
+            pass
+        # If no paths from manifest, use original paths
         if not processed_paths:
             processed_paths = list(paths.keys())
         # Process minification
         minified_files = self.process_minification(processed_paths)
+        # Yield minified files back to Django
+        for original, minified in minified_files.items():
+            yield original, minified, True
         # Update paths to include minified files for compression
         all_paths = processed_paths + list(minified_files.values())
         # Process compression
         self.process_compression(all_paths)
         # Update manifest with minified file paths
-        if hasattr(self, "hashed_files") and minified_files:
+        if minified_files:
             self._update_manifest(minified_files)
 
     def _update_manifest(self, minified_files):
-        """Update manifest with minified file paths."""
+        """Update manifest with minified file paths.
+
+        minified_files is a dict where: - key: the path that was minified
+        (hashed path from ManifestFilesMixin) - value: the minified
+        version path
+        """
         try:
-            # Read existing manifest
-            if hasattr(self, "exists") and self.exists(self.manifest_name):
-                with self.open(self.manifest_name) as f:
-                    manifest = json.load(f)
+            # Read existing manifest using Django's method
+            manifest_json = self.read_manifest()
+            if manifest_json:
+                manifest = json.loads(manifest_json)
             else:
                 manifest = {}
+
+            if "paths" not in manifest:
+                manifest["paths"] = {}
+
             # Update paths to point to minified versions
-            for original, minified in minified_files.items():
-                if original in manifest:
-                    manifest[original] = minified
-            # Save updated manifest
-            if hasattr(self, "save"):
-                self.save(
-                    self.manifest_name,
-                    ContentFile(json.dumps(manifest, indent=2, sort_keys=True)),
-                )
+            # minified_files has: {hashed_path: minified_hashed_path}
+            # manifest["paths"] has: {original_path: hashed_path}
+            # We need to find which original_path points to our hashed_path,
+            # then update it to point to minified_hashed_path
+            for hashed_path, minified_path in minified_files.items():
+                # Normalize paths
+                hashed_relative = hashed_path
+                if os.path.isabs(hashed_path):
+                    path_obj = Path(hashed_path)
+                    parts = path_obj.parts
+                    if len(parts) > 1:
+                        hashed_relative = os.path.join(*parts[1:])
+                    else:
+                        hashed_relative = os.path.basename(hashed_path)
+
+                minified_relative = minified_path
+                if os.path.isabs(minified_path):
+                    path_obj = Path(minified_path)
+                    parts = path_obj.parts
+                    if len(parts) > 1:
+                        minified_relative = os.path.join(*parts[1:])
+                    else:
+                        minified_relative = os.path.basename(minified_path)
+
+                # Find which original path maps to this hashed path
+                for original_path, current_path in manifest["paths"].items():
+                    if current_path == hashed_relative:
+                        # Update to point to minified version
+                        manifest["paths"][original_path] = minified_relative
+                        break
+
+            # Save updated manifest - delete old one first to avoid stale data
+            if self.exists(self.manifest_name):
+                self.delete(self.manifest_name)
+            new_manifest_contents = json.dumps(manifest).encode("utf-8")
+            self.save(self.manifest_name, ContentFile(new_manifest_contents))
         except Exception as e:
             logger.error(f"Failed to update manifest: {e}")
