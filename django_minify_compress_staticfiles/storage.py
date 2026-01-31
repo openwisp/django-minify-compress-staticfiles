@@ -7,10 +7,7 @@ from pathlib import Path
 
 import rcssmin
 import rjsmin
-from django.contrib.staticfiles.storage import (
-    ManifestFilesMixin,
-    StaticFilesStorage,
-)
+from django.contrib.staticfiles.storage import ManifestFilesMixin, StaticFilesStorage
 from django.core.files.base import ContentFile
 from django.utils.deconstruct import deconstructible
 
@@ -114,7 +111,7 @@ class MinificationMixin(FileProcessorMixin):
                     stem = path_obj.stem
                     suffix = path_obj.suffix
                     minified_filename = f"{stem}.min.{file_hash}{suffix}"
-                    if parent and str(parent) != '.':
+                    if parent and str(parent) != ".":
                         minified_path = str(parent / minified_filename)
                     else:
                         minified_path = minified_filename
@@ -260,7 +257,9 @@ class MinicompressStorage(
     def post_process(self, paths, dry_run=False, **options):
         """Post-process collected static files."""
         # First, let the parent classes do their work (creates manifest with hashed names)
-        all_post_processed = list(super().post_process(paths, dry_run=dry_run, **options))
+        all_post_processed = list(
+            super().post_process(paths, dry_run=dry_run, **options)
+        )
         # Yield all the results from parent
         for item in all_post_processed:
             yield item

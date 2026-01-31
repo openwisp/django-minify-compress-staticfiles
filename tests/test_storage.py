@@ -10,8 +10,8 @@ from django.test import TestCase
 from django_minify_compress_staticfiles.storage import (
     CompressionMixin,
     FileProcessorMixin,
-    MinificationMixin,
     MinicompressStorage,
+    MinificationMixin,
 )
 
 try:
@@ -66,16 +66,19 @@ class MockStorage:
 
 class _TestableFileProcessor(FileProcessorMixin, MockStorage):
     """Testable version of FileProcessorMixin."""
+
     pass
 
 
 class _TestableMinification(MinificationMixin, MockStorage):
     """Testable version of MinificationMixin."""
+
     pass
 
 
 class _TestableCompression(CompressionMixin, MockStorage):
     """Testable version of CompressionMixin."""
+
     pass
 
 
@@ -146,6 +149,7 @@ class CompressionMixinTests(TestCase):
         self.assertLess(len(compressed), len(content))
         # Verify decompression
         import brotli  # noqa: F811
+
         self.assertEqual(brotli.decompress(compressed).decode("utf-8"), content)
 
 

@@ -22,7 +22,9 @@ def generate_file_hash(content_or_path, length=12):
             with open(content_or_path, "rb") as f:
                 return hashlib.md5(f.read()).hexdigest()[:length]
         else:
-            logger.error(f"Unsupported type for hash generation: {type(content_or_path)}")
+            logger.error(
+                f"Unsupported type for hash generation: {type(content_or_path)}"
+            )
             return ""
     except (OSError, IOError) as e:
         logger.error(f"Failed to generate hash for {content_or_path}: {e}")
@@ -41,7 +43,7 @@ def create_hashed_filename(original_path, hash_value):
         stem = re.sub(hash_pattern, "", stem)
     new_filename = f"{stem}.{hash_value}{suffix}"
     # Preserve directory structure
-    if parent and str(parent) != '.':
+    if parent and str(parent) != ".":
         return str(parent / new_filename)
     return new_filename
 
@@ -126,7 +128,7 @@ class FileManager:
         """Check if file is candidate for compression (size check)."""
         min_size = getattr(self, "min_file_size", None) or 200
         # Try to get full path from storage first
-        if hasattr(self.storage, 'path'):
+        if hasattr(self.storage, "path"):
             try:
                 full_path = self.storage.path(file_path)
                 return get_file_size(full_path) >= min_size

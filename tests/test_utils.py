@@ -94,6 +94,7 @@ class ShouldProcessFileTests(TestCase):
         self.assertTrue(should_process_file("test.js", ["js"], []))
         self.assertFalse(should_process_file("test.png", ["css"], []))
         self.assertFalse(should_process_file("test.css", [], []))
+
     def test_exclude_patterns(self):
         """Test exclude patterns."""
         self.assertFalse(should_process_file("jquery.min.css", ["css"], ["*.min.*"]))
@@ -107,6 +108,7 @@ class FileManagerTests(TestCase):
     def setUp(self):
         """Set up test fixtures."""
         from django.core.files.storage import FileSystemStorage
+
         self.storage = FileSystemStorage()
         self.manager = FileManager(self.storage)
 
