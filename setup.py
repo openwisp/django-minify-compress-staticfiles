@@ -2,6 +2,8 @@ import os
 
 from setuptools import find_packages, setup
 
+from django_minify_compress_staticfiles import get_version
+
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 with open(os.path.join(HERE, "README.rst"), encoding="utf-8") as f:
@@ -9,7 +11,7 @@ with open(os.path.join(HERE, "README.rst"), encoding="utf-8") as f:
 
 setup(
     name="django-minify-compress-staticfiles",
-    version="1.0.0",
+    version=get_version(),
     description="Django package for minifying and compressing static files",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/x-rst",
