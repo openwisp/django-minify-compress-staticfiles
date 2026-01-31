@@ -19,9 +19,9 @@ setup(
     packages=find_packages(exclude=["tests*"]),
     include_package_data=True,
     install_requires=[
-        "rjsmin>=1.2.0",
-        "rcssmin>=1.1.0",
-        "brotli>=1.0.0",
+        "rjsmin>=1.2.0,<2.0.0",
+        "rcssmin>=1.1.0,<2.0.0",
+        "brotli>=1.2.0,<2.0.0",
     ],
     extras_require={
         "test": [
