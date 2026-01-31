@@ -5,6 +5,7 @@ import logging
 import os
 from pathlib import Path
 
+import brotli
 import rcssmin
 import rjsmin
 from django.contrib.staticfiles.storage import ManifestFilesMixin, StaticFilesStorage
@@ -12,9 +13,7 @@ from django.core.files.base import ContentFile
 from django.utils.deconstruct import deconstructible
 
 from .conf import DEFAULT_SETTINGS, get_setting
-from .utils import FileManager, create_hashed_filename, generate_file_hash
-
-import brotli
+from .utils import FileManager, generate_file_hash
 
 logger = logging.getLogger(__name__)
 
