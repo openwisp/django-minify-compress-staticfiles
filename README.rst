@@ -146,38 +146,59 @@ Supported File Types
 Files matching ``*.min.*`` or ``*-min.*`` patterns are excluded from
 processing.
 
-Security Considerations
------------------------
+Security and Performance Considerations
+---------------------------------------
 
-The package includes several security features to protect against common
-attacks:
+The package implements the following safeguards to mitigate common attack
+vectors and ensure resource stability.
 
-**Path Traversal Protection**
-    All file paths are validated to prevent directory traversal attacks.
-    Files outside the static root directory cannot be read or written.
+Path Traversal Protection
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Memory Exhaustion Prevention**
-    ``MAX_FILE_SIZE`` limits the maximum file size that will be processed,
-    preventing attackers from causing memory exhaustion with extremely
-    large files.
+To prevent directory traversal attacks (e.g., ``../etc/passwd``), all file
+paths undergo strict validation. The system enforces a boundary check
+ensuring no read or write operations occur outside the defined
+``STATIC_ROOT``. Any attempt to access parent directories via relative
+paths is intercepted and blocked.
 
-**CPU Exhaustion Prevention**
-    Compression levels and file processing limits prevent CPU exhaustion
-    attacks. Default compression values (Gzip: 6, Brotli: 4) provide good
-    performance without causing excessive CPU usage.
+Memory Exhaustion Prevention
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Compression Bomb Protection**
-    Already compressed files (e.g., ``.gz``, ``.br``, ``.zip``) are
-    excluded from processing by default to prevent recursive compression
-    that could cause CPU exhaustion.
+To prevent memory exhaustion, the ``MAX_FILE_SIZE`` setting enforces a
+hard cap on file processing. This prevents the application from attempting
+to buffer or process excessively large files that could lead to
+Out-Of-Memory (OOM) errors.
 
-**SHA-256 Hashing**
-    File hashes use SHA-256 instead of MD5 for better security, though
-    this is primarily for cache invalidation rather than cryptographic
-    security.
+CPU Exhaustion & Resource Throttling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compression is a CPU-intensive task. To balance throughput with system
+stability, the default compression levels are tuned for efficiency:
+
+- **Gzip:** Level 6
+- **Brotli:** Level 4
+
+These defaults prevent "CPU pinning" where a single request monopolizes
+processor cycles.
+
+Compression Bomb Protection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The processor automatically excludes files that are already compressed
+(e.g., ``.gz``, ``.br``, ``.zip``, ``.png``). This prevents recursive
+compression cycles and "Zip Bomb" style attacks that could lead to
+exponential CPU and disk space consumption.
+
+Integrity & Cache Validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+File fingerprinting utilizes **SHA-256** hashing. While the primary use
+case is robust cache invalidation (versioning), SHA-256 was chosen over
+MD5 or SHA-1 to provide a collision-resistant mechanism that meets modern
+security compliance standards.
 
 Recommended Settings for Production
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For production deployments with high security requirements:
 
