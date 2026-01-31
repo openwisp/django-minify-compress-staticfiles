@@ -54,7 +54,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install ${{ matrix.django-version }}
           pip install coverage
-          pip install -e .[brotli]
+          pip install -e .
 
       - name: Run tests
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
