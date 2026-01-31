@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 def generate_file_hash(content_or_path, length=12):
     """Generate MD5 hash of file content or raw bytes."""
-
     try:
         if isinstance(content_or_path, bytes):
             # Direct content hash
@@ -36,12 +35,10 @@ def create_hashed_filename(original_path, hash_value):
     parent = path.parent
     stem = path.stem
     suffix = path.suffix
-
     # If already has hash, replace it
     hash_pattern = r"\.[a-f0-9]{12}$"
     if re.search(hash_pattern, stem):
         stem = re.sub(hash_pattern, "", stem)
-
     new_filename = f"{stem}.{hash_value}{suffix}"
     # Preserve directory structure
     if parent and str(parent) != '.':
@@ -58,11 +55,9 @@ def should_process_file(file_path, supported_extensions, exclude_patterns):
     """Check if file should be processed for minification/compression."""
     path = Path(file_path)
     ext = normalize_extension(path.suffix)
-
     # Check extension
     if not supported_extensions or ext not in supported_extensions:
         return False
-
     # Check exclude patterns
     filename = path.name
     for pattern in exclude_patterns or []:
