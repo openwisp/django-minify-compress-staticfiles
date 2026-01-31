@@ -40,10 +40,8 @@ class IntegrationTests(TestCase):
             test_file = os.path.join(self.static_root, "style.css")
             with open(test_file, "w") as f:
                 f.write(css_content)
-
             paths = {"style.css": (storage, "style.css")}
             list(storage.post_process(paths, dry_run=False))
-
             # Verify original file still exists
             self.assertTrue(os.path.exists(test_file))
 
