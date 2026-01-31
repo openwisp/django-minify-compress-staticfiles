@@ -25,7 +25,7 @@ setup(
     ],
     extras_require={
         "test": [
-            "openwisp-utils[test]~=1.2.2",
+            "openwisp-utils[qa]~=1.2.2",
         ],
     },
     classifiers=[
