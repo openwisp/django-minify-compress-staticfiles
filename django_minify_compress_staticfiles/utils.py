@@ -50,7 +50,7 @@ def generate_file_hash(content_or_path, length=12):
                 or 10485760
             )
             with open(file_path, "rb") as f:
-                content = f.read()
+                content = f.read(max_size + 1)
                 if len(content) > max_size:
                     logger.warning(f"File too large for hashing, skipping: {file_path}")
                     return ""

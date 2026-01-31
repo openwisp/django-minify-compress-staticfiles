@@ -106,7 +106,7 @@ class FileManagerEdgeCaseTests(TestCase):
                 self.exclude_patterns = []
                 self.min_file_size = 200
 
-            def is_compression_candidate(self, file_path):
+            def is_compression_candidate(self, _file_path):
                 return True
 
         manager = TestFileManager()
