@@ -132,9 +132,16 @@ class ShouldProcessFileTests(TestCase):
 
     def test_exclude_patterns_plain_suffix(self):
         """Test plain suffix pattern matching."""
-        # Plain suffix pattern (no wildcard)
-        self.assertFalse(should_process_file("app.min.css", ["css"], [".min.css"]))
-        self.assertTrue(should_process_file("app.css", ["css"], [".min.css"]))
+        self.assertFalse(should_process_file("app.min.css", ["css"], ["*.min.css"]))
+        self.assertTrue(should_process_file("app.css", ["css"], ["*.min.css"]))
+
+    def test_exclude_patterns_prefix_wildcard(self):
+        """Test prefix patterns like 'swagger-ui-*' (wildcard at end)."""
+        self.assertFalse(
+            should_process_file("swagger-ui-bundle.js", ["js"], ["swagger-ui-*"])
+        )
+        self.assertFalse(should_process_file("swagger-ui.js", ["js"], ["swagger-ui*"]))
+        self.assertTrue(should_process_file("app.js", ["js"], ["swagger-ui-*"]))
 
 
 class FileManagerTests(TestCase):

@@ -1,3 +1,4 @@
+import fnmatch
 import hashlib
 import logging
 import os
@@ -100,14 +101,7 @@ def should_process_file(file_path, supported_extensions, exclude_patterns):
     # Check exclude patterns
     filename = path.name
     for pattern in exclude_patterns or []:
-        # Handle simple glob patterns
-        if pattern == "*.min.*" and ".min." in filename:
-            return False
-        elif pattern == "*-min.*" and "-min." in filename:
-            return False
-        elif pattern.startswith("*") and filename.endswith(pattern[1:]):
-            return False
-        elif filename.endswith(pattern):
+        if fnmatch.fnmatch(filename, pattern):
             return False
 
     return True
