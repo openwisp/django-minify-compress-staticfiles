@@ -1,6 +1,16 @@
 Changelog
 =========
 
+Version 1.1.1 [2026-04-25]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Excluded swagger-ui* files (from drf-yasg)
+- Fixed various issues with settings not working as expected
+- Fixed exclude pattern
+
 Version 1.1.0 [2026-01-31]
 --------------------------
 
