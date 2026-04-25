@@ -59,3 +59,4 @@ class DefaultSettingsTests(TestCase):
         patterns = DEFAULT_SETTINGS["EXCLUDE_PATTERNS"]
         self.assertIn("*.min.*", patterns)
         self.assertIn("*-min.*", patterns)
+        self.assertIn("*swagger-ui-*", patterns)

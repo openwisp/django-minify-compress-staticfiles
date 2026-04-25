@@ -29,6 +29,9 @@ DEFAULT_SETTINGS = {
     "EXCLUDE_PATTERNS": [
         "*.min.*",
         "*-min.*",
+        # Fixes issues with drf-yasg
+        # these files are already minified
+        "*swagger-ui-*",
         "*.gz",
         "*.br",
         "*.zip",

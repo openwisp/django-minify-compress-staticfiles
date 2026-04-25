@@ -6,6 +6,7 @@ import tempfile
 from django.core.files.storage import FileSystemStorage
 from django.test import TestCase, override_settings
 
+from django_minify_compress_staticfiles.conf import DEFAULT_SETTINGS
 from django_minify_compress_staticfiles.utils import (
     FileManager,
     create_hashed_filename,
@@ -136,12 +137,20 @@ class ShouldProcessFileTests(TestCase):
         self.assertTrue(should_process_file("app.css", ["css"], ["*.min.css"]))
 
     def test_exclude_patterns_prefix_wildcard(self):
-        """Test prefix patterns like ``swagger-ui-*`` (wildcard at end)."""
+        """Test prefix patterns like ``vendor-*`` (wildcard at end)."""
+        self.assertFalse(should_process_file("vendor-bundle.js", ["js"], ["vendor-*"]))
+        self.assertFalse(should_process_file("vendor.js", ["js"], ["vendor*"]))
+        self.assertTrue(should_process_file("app.js", ["js"], ["vendor-*"]))
+
+    def test_default_exclude_patterns_cover_swagger_ui(self):
+        """swagger-ui-* in DEFAULT_SETTINGS must exclude drf-yasg dist files."""
+        patterns = DEFAULT_SETTINGS["EXCLUDE_PATTERNS"]
         self.assertFalse(
-            should_process_file("swagger-ui-bundle.js", ["js"], ["swagger-ui-*"])
+            should_process_file("swagger-ui-bundle.js", ["js"], patterns)
         )
-        self.assertFalse(should_process_file("swagger-ui.js", ["js"], ["swagger-ui*"]))
-        self.assertTrue(should_process_file("app.js", ["js"], ["swagger-ui-*"]))
+        self.assertFalse(
+            should_process_file("swagger-ui-bundle.css", ["css"], patterns)
+        )
 
 
 class FileManagerSupportedExtensionsTests(TestCase):

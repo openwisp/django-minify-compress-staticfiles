@@ -119,9 +119,9 @@ All settings use the ``MINICOMPRESS_`` prefix:
 
 ``MINICOMPRESS_EXCLUDE_PATTERNS``
     List of glob patterns to exclude from processing (default:
-    ``["*.min.*", "*-min.*", "*.gz", "*.br", "*.zip"]``) Pre-compressed
-    files (e.g., ``.gz``, ``.br``, ``.zip``) are excluded by default to
-    prevent double-compression and security issues.
+    ``["*.min.*", "*-min.*", "*swagger-ui-*", "*.gz", "*.br", "*.zip"]``)
+    Pre-compressed files (e.g., ``.gz``, ``.br``, ``.zip``) are excluded
+    by default to prevent double-compression and security issues.
 
 Usage
 -----
