@@ -23,10 +23,24 @@ class GetSettingTests(TestCase):
         """Test getting custom setting values."""
         self.assertEqual(get_setting("MIN_FILE_SIZE"), 500)
 
-    @override_settings(MINICOMPRESS_ENABLED=None)
     def test_none_value_falls_back_to_default(self):
-        """Explicit None is treated as unset and returns the default."""
-        self.assertEqual(get_setting("ENABLED"), DEFAULT_SETTINGS["ENABLED"])
+        """Explicit None is treated as unset and returns the default for all types."""
+        with override_settings(MINICOMPRESS_ENABLED=None):
+            self.assertEqual(get_setting("ENABLED"), DEFAULT_SETTINGS["ENABLED"])
+        with override_settings(MINICOMPRESS_MIN_FILE_SIZE=None):
+            self.assertEqual(
+                get_setting("MIN_FILE_SIZE"), DEFAULT_SETTINGS["MIN_FILE_SIZE"]
+            )
+        with override_settings(MINICOMPRESS_COMPRESSION_LEVEL_GZIP=None):
+            self.assertEqual(
+                get_setting("COMPRESSION_LEVEL_GZIP"),
+                DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"],
+            )
+        with override_settings(MINICOMPRESS_SUPPORTED_EXTENSIONS=None):
+            self.assertEqual(
+                get_setting("SUPPORTED_EXTENSIONS"),
+                DEFAULT_SETTINGS["SUPPORTED_EXTENSIONS"],
+            )
 
 
 class DefaultSettingsTests(TestCase):

@@ -291,25 +291,16 @@ class MinificationMixinTests(TestCase):
         # Should skip binary files that can't be decoded
         self.assertEqual(result, {})
 
+    @override_settings(MINICOMPRESS_MAX_FILES_PER_RUN=2)
     def test_process_minification_max_files_limit(self):
         """Test MAX_FILES_PER_RUN limit is respected."""
-        # Create multiple CSS files
         for i in range(5):
             test_file = os.path.join(self.minifier.temp_dir, f"style{i}.css")
             with open(test_file, "w") as f:
                 f.write(f"body{{margin:{i}}} " * 50)
-        # Process with a low limit
-        from django_minify_compress_staticfiles.conf import DEFAULT_SETTINGS
-
-        original_max = DEFAULT_SETTINGS.get("MAX_FILES_PER_RUN", 1000)
-        DEFAULT_SETTINGS["MAX_FILES_PER_RUN"] = 2
-        try:
-            paths = [f"style{i}.css" for i in range(5)]
-            result = self.minifier.process_minification(paths)
-            # Should only process up to the limit
-            self.assertLessEqual(len(result), 2)
-        finally:
-            DEFAULT_SETTINGS["MAX_FILES_PER_RUN"] = original_max
+        paths = [f"style{i}.css" for i in range(5)]
+        result = self.minifier.process_minification(paths)
+        self.assertLessEqual(len(result), 2)
 
     @override_settings(MINICOMPRESS_MAX_FILES_PER_RUN=2)
     def test_max_files_limit_applies_to_attempted_not_reduced(self):
@@ -325,7 +316,7 @@ class MinificationMixinTests(TestCase):
             self.minifier, "_read_file_content", wraps=self.minifier._read_file_content
         ) as mocked_read:
             self.minifier.process_minification(paths)
-        self.assertLessEqual(mocked_read.call_count, 2)
+        self.assertEqual(mocked_read.call_count, 2)
 
     def test_process_minification_unsafe_path(self):
         """Test that unsafe paths are skipped."""

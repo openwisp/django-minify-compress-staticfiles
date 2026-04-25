@@ -49,7 +49,7 @@ def generate_file_hash(content_or_path, length=12):
         elif isinstance(content_or_path, (str, os.PathLike)):
             # File path - read and hash (supports str and pathlib.Path)
             file_path = os.fspath(content_or_path)
-            max_size = get_setting("MAX_FILE_SIZE") or 10485760
+            max_size = get_setting("MAX_FILE_SIZE")
             with open(file_path, "rb") as f:
                 content = f.read(max_size + 1)
                 if len(content) > max_size:
@@ -122,35 +122,35 @@ class FileManager:
     @cached_property
     def supported_extensions(self):
         """Get supported file extensions from settings."""
-        result = get_setting("SUPPORTED_EXTENSIONS")
-        return result or {}
+        return get_setting("SUPPORTED_EXTENSIONS")
 
     @cached_property
     def exclude_patterns(self):
         """Get exclude patterns from settings."""
-        result = get_setting("EXCLUDE_PATTERNS")
-        return result or []
+        return get_setting("EXCLUDE_PATTERNS")
 
     @cached_property
     def min_file_size(self):
         """Get minimum file size for compression."""
-        result = get_setting("MIN_FILE_SIZE")
-        return result or 200
+        return get_setting("MIN_FILE_SIZE")
+
+    @cached_property
+    def processable_extensions(self):
+        """Normalized list of enabled file extensions."""
+        extensions = self.supported_extensions
+        if isinstance(extensions, dict):
+            return [k for k, v in extensions.items() if v]
+        return list(extensions) if extensions else []
 
     def should_process(self, file_path):
         """Check if file should be processed."""
-        extensions = getattr(self, "supported_extensions", None) or {}
-        if isinstance(extensions, dict):
-            extensions = [k for k, v in extensions.items() if v]
-        else:
-            extensions = list(extensions) if extensions else []
         return should_process_file(
-            file_path, extensions, getattr(self, "exclude_patterns", None) or []
+            file_path, self.processable_extensions, self.exclude_patterns
         )
 
     def is_compression_candidate(self, file_path):
         """Check if file is candidate for compression (size check)."""
-        min_size = getattr(self, "min_file_size", None) or 200
+        min_size = self.min_file_size
         # Try to get full path from storage first
         if hasattr(self.storage, "path"):
             try:

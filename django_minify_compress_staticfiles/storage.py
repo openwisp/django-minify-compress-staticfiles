@@ -40,13 +40,8 @@ class FileProcessorMixin:
             return False
         if allow_min:
             # When allowing min files, just check extension
-            ext = Path(path).suffix.lower()
-            supported = self.file_manager.supported_extensions
-            if isinstance(supported, dict):
-                supported = [k for k, v in supported.items() if v]
-            else:
-                supported = list(supported) if supported else []
-            if ext.lstrip(".") not in supported:
+            ext = Path(path).suffix.lower().lstrip(".")
+            if ext not in self.file_manager.processable_extensions:
                 return False
         return self.file_manager.is_compression_candidate(path)
 
@@ -87,7 +82,7 @@ class MinificationMixin(FileProcessorMixin):
         if not get_setting("MINIFY_FILES"):
             return {}
         minified_files = {}
-        max_files = get_setting("MAX_FILES_PER_RUN") or 1000
+        max_files = get_setting("MAX_FILES_PER_RUN")
         processed_count = 0
 
         for path in paths:
@@ -139,10 +134,12 @@ class CompressionMixin(FileProcessorMixin):
         """Process compression for given paths."""
         if not get_setting("ENABLED"):
             return {}
-        if not (get_setting("GZIP_COMPRESSION") or get_setting("BROTLI_COMPRESSION")):
+        gzip_enabled = get_setting("GZIP_COMPRESSION")
+        brotli_enabled = get_setting("BROTLI_COMPRESSION")
+        if not (gzip_enabled or brotli_enabled):
             return {}
         compressed_files = {}
-        max_files = get_setting("MAX_FILES_PER_RUN") or 1000
+        max_files = get_setting("MAX_FILES_PER_RUN")
         processed_count = 0
 
         for path in paths:
@@ -155,6 +152,7 @@ class CompressionMixin(FileProcessorMixin):
                 content = self._read_file_content(path)
                 if content is None:
                     continue
+                processed_count += 1
                 # Get relative path for storage operations
                 # If path is absolute, convert to a relative path while preserving directory structure
                 if os.path.isabs(path):
@@ -169,7 +167,7 @@ class CompressionMixin(FileProcessorMixin):
                 else:
                     relative_path = path
                 # Process Gzip compression
-                if get_setting("GZIP_COMPRESSION"):
+                if gzip_enabled:
                     gzipped_path = f"{relative_path}.gz"
                     gzipped_content = self.gzip_compress(content)
                     self._write_file_content(
@@ -177,12 +175,11 @@ class CompressionMixin(FileProcessorMixin):
                     )
                     compressed_files.setdefault(path, []).append(gzipped_path)
                 # Process Brotli compression
-                if get_setting("BROTLI_COMPRESSION"):
+                if brotli_enabled:
                     brotli_path = f"{relative_path}.br"
                     brotli_content = self.brotli_compress(content)
                     self._write_file_content(brotli_path, brotli_content, is_text=False)
                     compressed_files.setdefault(path, []).append(brotli_path)
-                processed_count += 1
             except Exception as e:
                 logger.error(f"Failed to compress {path}: {e}")
                 continue
@@ -193,7 +190,7 @@ class CompressionMixin(FileProcessorMixin):
         if not is_safe_path(path):
             logger.warning(f"Skipping unsafe path: {path}")
             return None
-        max_size = get_setting("MAX_FILE_SIZE") or 10485760
+        max_size = get_setting("MAX_FILE_SIZE")
         # Try storage methods first
         if self.exists(path):
             with self.open(path) as f:

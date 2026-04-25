@@ -146,9 +146,6 @@ Supported File Types
 
 **Compression**: CSS, JS, TXT, XML, JSON, SVG, MD, RST, HTML, HTM
 
-Files matching ``*.min.*`` or ``*-min.*`` patterns are excluded from
-processing.
-
 Security and Performance Considerations
 ---------------------------------------
 

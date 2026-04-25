@@ -145,9 +145,7 @@ class ShouldProcessFileTests(TestCase):
     def test_default_exclude_patterns_cover_swagger_ui(self):
         """swagger-ui-* in DEFAULT_SETTINGS must exclude drf-yasg dist files."""
         patterns = DEFAULT_SETTINGS["EXCLUDE_PATTERNS"]
-        self.assertFalse(
-            should_process_file("swagger-ui-bundle.js", ["js"], patterns)
-        )
+        self.assertFalse(should_process_file("swagger-ui-bundle.js", ["js"], patterns))
         self.assertFalse(
             should_process_file("swagger-ui-bundle.css", ["css"], patterns)
         )

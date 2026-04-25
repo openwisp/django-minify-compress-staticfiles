@@ -52,7 +52,7 @@ def get_setting(name):
 
 def validate_settings():
     """Raise ImproperlyConfigured for settings that must be positive integers."""
-    for name in ("MIN_FILE_SIZE", "MAX_FILE_SIZE"):
+    for name in ("MIN_FILE_SIZE", "MAX_FILE_SIZE", "MAX_FILES_PER_RUN"):
         value = get_setting(name)
         if value is not None and value <= 0:
             raise ImproperlyConfigured(
