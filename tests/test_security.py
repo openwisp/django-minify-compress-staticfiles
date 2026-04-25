@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 import tempfile
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import brotli
 from django.core.files.storage import FileSystemStorage
@@ -237,6 +237,27 @@ class CompressionEdgeCaseTests(TestCase):
             brotlied = self.compressor.brotli_compress(content)
             self.assertIsInstance(gzipped, bytes)
             self.assertIsInstance(brotlied, bytes)
+
+    @override_settings(
+        MINICOMPRESS_COMPRESSION_LEVEL_GZIP=0, MINICOMPRESS_COMPRESSION_LEVEL_BROTLI=0
+    )
+    def test_compression_level_zero_is_respected(self):
+        """Level 0 must not be overridden by the default via falsy `or` fallback."""
+        content = "test" * 100
+        with patch("gzip.GzipFile") as mock_gzip:
+            mock_gzip.return_value.__enter__ = lambda s: s
+            mock_gzip.return_value.__exit__ = Mock(return_value=False)
+            mock_gzip.return_value.write = Mock()
+            self.compressor.gzip_compress(content)
+            mock_gzip.assert_called_once()
+            _, kwargs = mock_gzip.call_args
+            self.assertEqual(kwargs["compresslevel"], 0)
+        with patch("brotli.compress") as mock_brotli:
+            mock_brotli.return_value = b"compressed"
+            self.compressor.brotli_compress(content)
+            mock_brotli.assert_called_once()
+            _, kwargs = mock_brotli.call_args
+            self.assertEqual(kwargs["quality"], 0)
 
 
 class AbsolutePathTests(TestCase):

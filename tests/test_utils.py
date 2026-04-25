@@ -4,7 +4,7 @@ import os
 import tempfile
 
 from django.core.files.storage import FileSystemStorage
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from django_minify_compress_staticfiles.utils import (
     FileManager,
@@ -136,12 +136,41 @@ class ShouldProcessFileTests(TestCase):
         self.assertTrue(should_process_file("app.css", ["css"], ["*.min.css"]))
 
     def test_exclude_patterns_prefix_wildcard(self):
-        """Test prefix patterns like 'swagger-ui-*' (wildcard at end)."""
+        """Test prefix patterns like ``swagger-ui-*`` (wildcard at end)."""
         self.assertFalse(
             should_process_file("swagger-ui-bundle.js", ["js"], ["swagger-ui-*"])
         )
         self.assertFalse(should_process_file("swagger-ui.js", ["js"], ["swagger-ui*"]))
         self.assertTrue(should_process_file("app.js", ["js"], ["swagger-ui-*"]))
+
+
+class FileManagerSupportedExtensionsTests(TestCase):
+    """Tests for SUPPORTED_EXTENSIONS handling in FileManager."""
+
+    def _make_manager(self):
+        return FileManager(FileSystemStorage())
+
+    @override_settings(MINICOMPRESS_SUPPORTED_EXTENSIONS={"css": True, "js": False})
+    def test_false_value_excludes_extension(self):
+        """Extensions with False value must not be processed."""
+        manager = self._make_manager()
+        self.assertFalse(manager.should_process("app.js"))
+        self.assertTrue(manager.should_process("app.css"))
+
+    @override_settings(MINICOMPRESS_SUPPORTED_EXTENSIONS={"css": True})
+    def test_omitted_extension_not_processed(self):
+        """Extensions absent from the dict must not be processed."""
+        manager = self._make_manager()
+        self.assertFalse(manager.should_process("app.js"))
+        self.assertTrue(manager.should_process("app.css"))
+
+    @override_settings(MINICOMPRESS_SUPPORTED_EXTENSIONS=["css", "js"])
+    def test_list_value_accepted(self):
+        """A plain list is also a valid value for SUPPORTED_EXTENSIONS."""
+        manager = self._make_manager()
+        self.assertTrue(manager.should_process("app.css"))
+        self.assertTrue(manager.should_process("app.js"))
+        self.assertFalse(manager.should_process("app.png"))
 
 
 class FileManagerTests(TestCase):

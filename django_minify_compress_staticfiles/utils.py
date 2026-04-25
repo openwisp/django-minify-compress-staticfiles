@@ -145,12 +145,10 @@ class FileManager:
     def should_process(self, file_path):
         """Check if file should be processed."""
         extensions = getattr(self, "supported_extensions", None) or {}
-        if hasattr(extensions, "keys"):
-            extensions = list(extensions.keys())
-        elif isinstance(extensions, dict):
-            extensions = list(extensions.keys())
+        if isinstance(extensions, dict):
+            extensions = [k for k, v in extensions.items() if v]
         else:
-            extensions = extensions or []
+            extensions = list(extensions) if extensions else []
         return should_process_file(
             file_path, extensions, getattr(self, "exclude_patterns", None) or []
         )

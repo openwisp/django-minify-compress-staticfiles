@@ -5,10 +5,11 @@ import json
 import os
 import shutil
 import tempfile
+from unittest import mock
 
 import brotli
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from django_minify_compress_staticfiles.storage import (
     CompressionMixin,
@@ -113,6 +114,17 @@ class FileProcessorMixinTests(TestCase):
         # Unknown type returns original
         txt = "some content"
         self.assertEqual(self.processor.minify_file_content(txt, "txt"), txt)
+
+    @override_settings(MINICOMPRESS_PRESERVE_COMMENTS=False)
+    def test_preserve_comments_false_strips_bang_comments(self):
+        self.assertNotIn(
+            "/*!",
+            self.processor.minify_file_content("/*! license */ body{margin:0}", "css"),
+        )
+        self.assertNotIn(
+            "/*!",
+            self.processor.minify_file_content("/*! license */function a(){}", "js"),
+        )
 
     def test_minify_content_css_exception(self):
         """Test CSS minification exception handling."""
@@ -298,6 +310,22 @@ class MinificationMixinTests(TestCase):
             self.assertLessEqual(len(result), 2)
         finally:
             DEFAULT_SETTINGS["MAX_FILES_PER_RUN"] = original_max
+
+    @override_settings(MINICOMPRESS_MAX_FILES_PER_RUN=2)
+    def test_max_files_limit_applies_to_attempted_not_reduced(self):
+        """MAX_FILES_PER_RUN must cap files *attempted*, not just files that shrank."""
+        # Already-minified CSS: rcssmin won't reduce it, so processed_count
+        # never increments under the current buggy code -> all 5 get read.
+        for i in range(5):
+            test_file = os.path.join(self.minifier.temp_dir, f"pre{i}.css")
+            with open(test_file, "w") as f:
+                f.write(f"a{{color:{i}px}}")
+        paths = [f"pre{i}.css" for i in range(5)]
+        with mock.patch.object(
+            self.minifier, "_read_file_content", wraps=self.minifier._read_file_content
+        ) as mocked_read:
+            self.minifier.process_minification(paths)
+        self.assertLessEqual(mocked_read.call_count, 2)
 
     def test_process_minification_unsafe_path(self):
         """Test that unsafe paths are skipped."""

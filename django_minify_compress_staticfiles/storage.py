@@ -12,7 +12,7 @@ from django.contrib.staticfiles.storage import ManifestFilesMixin, StaticFilesSt
 from django.core.files.base import ContentFile
 from django.utils.deconstruct import deconstructible
 
-from .conf import DEFAULT_SETTINGS, get_setting
+from .conf import DEFAULT_SETTINGS, get_setting, validate_settings
 from .utils import FileManager, is_safe_path
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ class FileProcessorMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        validate_settings()
         self.file_manager = FileManager(self)
 
     def should_process_minification(self, path):
@@ -42,7 +43,9 @@ class FileProcessorMixin:
             ext = Path(path).suffix.lower()
             supported = self.file_manager.supported_extensions
             if isinstance(supported, dict):
-                supported = list(supported.keys())
+                supported = [k for k, v in supported.items() if v]
+            else:
+                supported = list(supported) if supported else []
             if ext.lstrip(".") not in supported:
                 return False
         return self.file_manager.is_compression_candidate(path)
@@ -89,6 +92,8 @@ class MinificationMixin(FileProcessorMixin):
 
     def process_minification(self, paths):
         """Process minification for given paths."""
+        if not get_setting("ENABLED", DEFAULT_SETTINGS["ENABLED"]):
+            return {}
         if not get_setting("MINIFY_FILES", DEFAULT_SETTINGS["MINIFY_FILES"]):
             return {}
         minified_files = {}
@@ -114,6 +119,7 @@ class MinificationMixin(FileProcessorMixin):
                         content = content.decode("utf-8")
                     except UnicodeDecodeError:
                         continue
+                processed_count += 1
                 file_type = self._get_file_type(path)
                 minified_content = self.minify_file_content(content, file_type)
                 # Only save if minification reduced size
@@ -131,10 +137,8 @@ class MinificationMixin(FileProcessorMixin):
                         minified_path = str(parent / minified_filename)
                     else:
                         minified_path = minified_filename
-                    # Save minified content
                     self._write_file_content(minified_path, minified_content)
                     minified_files[path] = minified_path
-                    processed_count += 1
             except Exception as e:
                 logger.error(f"Failed to minify {path}: {e}")
                 continue
@@ -146,6 +150,8 @@ class CompressionMixin(FileProcessorMixin):
 
     def process_compression(self, paths, allow_min=False):
         """Process compression for given paths."""
+        if not get_setting("ENABLED", DEFAULT_SETTINGS["ENABLED"]):
+            return {}
         if not (
             get_setting("GZIP_COMPRESSION", DEFAULT_SETTINGS["GZIP_COMPRESSION"])
             or get_setting("BROTLI_COMPRESSION", DEFAULT_SETTINGS["BROTLI_COMPRESSION"])
@@ -245,12 +251,11 @@ class CompressionMixin(FileProcessorMixin):
     def gzip_compress(self, content):
         """Compress content using gzip."""
         buffer = io.BytesIO()
-        level = (
-            get_setting(
-                "COMPRESSION_LEVEL_GZIP", DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"]
-            )
-            or 6
+        level = get_setting(
+            "COMPRESSION_LEVEL_GZIP", DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"]
         )
+        if level is None:
+            level = DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"]
         # Clamp level to valid range (0-9)
         level = max(0, min(9, level))
         with gzip.GzipFile(fileobj=buffer, mode="wb", compresslevel=level) as gz_file:
@@ -261,12 +266,11 @@ class CompressionMixin(FileProcessorMixin):
 
     def brotli_compress(self, content):
         """Compress content using brotli."""
-        level = (
-            get_setting(
-                "COMPRESSION_LEVEL_BROTLI", DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"]
-            )
-            or 4
+        level = get_setting(
+            "COMPRESSION_LEVEL_BROTLI", DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"]
         )
+        if level is None:
+            level = DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"]
         # Clamp level to valid range (0-11)
         level = max(0, min(11, level))
         if isinstance(content, str):

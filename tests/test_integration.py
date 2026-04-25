@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 
+from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, override_settings
 
 from django_minify_compress_staticfiles.storage import MinicompressStorage
@@ -91,6 +92,41 @@ class IntegrationTests(TestCase):
                 f.write("small")
 
             self.assertFalse(storage.should_process_compression(test_file))
+
+    @override_settings(MINICOMPRESS_ENABLED=False)
+    def test_enabled_false_skips_all_processing(self):
+        """MINICOMPRESS_ENABLED=False must disable both minification and compression."""
+        with self.settings(STATIC_ROOT=self.static_root):
+            storage = MinicompressStorage()
+            test_file = os.path.join(self.static_root, "large.css")
+            with open(test_file, "w") as f:
+                f.write("body {\n    margin: 0;\n}" * 100)
+            self.assertEqual(storage.process_minification(["large.css"]), {})
+            self.assertEqual(storage.process_compression(["large.css"]), {})
+
+    @override_settings(MINICOMPRESS_MIN_FILE_SIZE=0)
+    def test_min_file_size_zero_raises(self):
+        with self.settings(STATIC_ROOT=self.static_root):
+            with self.assertRaises(ImproperlyConfigured):
+                MinicompressStorage()
+
+    @override_settings(MINICOMPRESS_MIN_FILE_SIZE=-1)
+    def test_min_file_size_negative_raises(self):
+        with self.settings(STATIC_ROOT=self.static_root):
+            with self.assertRaises(ImproperlyConfigured):
+                MinicompressStorage()
+
+    @override_settings(MINICOMPRESS_MAX_FILE_SIZE=0)
+    def test_max_file_size_zero_raises(self):
+        with self.settings(STATIC_ROOT=self.static_root):
+            with self.assertRaises(ImproperlyConfigured):
+                MinicompressStorage()
+
+    @override_settings(MINICOMPRESS_MAX_FILE_SIZE=-1)
+    def test_max_file_size_negative_raises(self):
+        with self.settings(STATIC_ROOT=self.static_root):
+            with self.assertRaises(ImproperlyConfigured):
+                MinicompressStorage()
 
     @override_settings(MINICOMPRESS_MINIFY_FILES=False)
     def test_minification_disabled(self):
