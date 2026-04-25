@@ -10,19 +10,23 @@ class GetSettingTests(TestCase):
 
     def test_get_default_value(self):
         """Test getting default value when setting not defined."""
-        result = get_setting("NONEXISTENT_SETTING", "default_value")
-        self.assertEqual(result, "default_value")
+        self.assertEqual(get_setting("ENABLED"), True)
+        self.assertIsNone(get_setting("NONEXISTENT_SETTING"))
 
     @override_settings(MINICOMPRESS_ENABLED=False)
     def test_get_overridden_value(self):
         """Test getting overridden setting value."""
-        result = get_setting("ENABLED", True)
-        self.assertFalse(result)
+        self.assertFalse(get_setting("ENABLED"))
 
     @override_settings(MINICOMPRESS_MIN_FILE_SIZE=500)
     def test_get_custom_values(self):
         """Test getting custom setting values."""
-        self.assertEqual(get_setting("MIN_FILE_SIZE", 200), 500)
+        self.assertEqual(get_setting("MIN_FILE_SIZE"), 500)
+
+    @override_settings(MINICOMPRESS_ENABLED=None)
+    def test_none_value_falls_back_to_default(self):
+        """Explicit None is treated as unset and returns the default."""
+        self.assertEqual(get_setting("ENABLED"), DEFAULT_SETTINGS["ENABLED"])
 
 
 class DefaultSettingsTests(TestCase):

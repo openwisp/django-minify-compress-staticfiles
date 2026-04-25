@@ -7,7 +7,7 @@ from pathlib import Path
 
 from django.utils.functional import cached_property
 
-from .conf import DEFAULT_SETTINGS, get_setting
+from .conf import get_setting
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def is_safe_path(path, base_dir=None):
 
 def validate_file_size(file_size):
     """Validate file size doesn't exceed maximum limit."""
-    max_size = get_setting("MAX_FILE_SIZE", DEFAULT_SETTINGS["MAX_FILE_SIZE"])
+    max_size = get_setting("MAX_FILE_SIZE")
     return file_size <= max_size
 
 
@@ -49,10 +49,7 @@ def generate_file_hash(content_or_path, length=12):
         elif isinstance(content_or_path, (str, os.PathLike)):
             # File path - read and hash (supports str and pathlib.Path)
             file_path = os.fspath(content_or_path)
-            max_size = (
-                get_setting("MAX_FILE_SIZE", DEFAULT_SETTINGS["MAX_FILE_SIZE"])
-                or 10485760
-            )
+            max_size = get_setting("MAX_FILE_SIZE") or 10485760
             with open(file_path, "rb") as f:
                 content = f.read(max_size + 1)
                 if len(content) > max_size:
@@ -125,21 +122,19 @@ class FileManager:
     @cached_property
     def supported_extensions(self):
         """Get supported file extensions from settings."""
-        result = get_setting(
-            "SUPPORTED_EXTENSIONS", DEFAULT_SETTINGS["SUPPORTED_EXTENSIONS"]
-        )
+        result = get_setting("SUPPORTED_EXTENSIONS")
         return result or {}
 
     @cached_property
     def exclude_patterns(self):
         """Get exclude patterns from settings."""
-        result = get_setting("EXCLUDE_PATTERNS", DEFAULT_SETTINGS["EXCLUDE_PATTERNS"])
+        result = get_setting("EXCLUDE_PATTERNS")
         return result or []
 
     @cached_property
     def min_file_size(self):
         """Get minimum file size for compression."""
-        result = get_setting("MIN_FILE_SIZE", DEFAULT_SETTINGS["MIN_FILE_SIZE"])
+        result = get_setting("MIN_FILE_SIZE")
         return result or 200
 
     def should_process(self, file_path):

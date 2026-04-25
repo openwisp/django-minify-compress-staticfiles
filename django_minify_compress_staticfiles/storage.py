@@ -12,7 +12,7 @@ from django.contrib.staticfiles.storage import ManifestFilesMixin, StaticFilesSt
 from django.core.files.base import ContentFile
 from django.utils.deconstruct import deconstructible
 
-from .conf import DEFAULT_SETTINGS, get_setting, validate_settings
+from .conf import get_setting, validate_settings
 from .utils import FileManager, is_safe_path
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class FileProcessorMixin:
 
     def should_process_minification(self, path):
         """Check if file should be minified."""
-        if not get_setting("MINIFY_FILES", DEFAULT_SETTINGS["MINIFY_FILES"]):
+        if not get_setting("MINIFY_FILES"):
             return False
         if not self.file_manager.should_process(path):
             return False
@@ -58,28 +58,18 @@ class FileProcessorMixin:
         """Minify file content based on type."""
         if file_type == "css" and rcssmin:
             try:
-                preserve_comments = get_setting(
-                    "PRESERVE_COMMENTS", DEFAULT_SETTINGS["PRESERVE_COMMENTS"]
-                )
-                if preserve_comments is None:
-                    preserve_comments = True
                 return rcssmin.cssmin(
                     content,
-                    keep_bang_comments=bool(preserve_comments),
+                    keep_bang_comments=bool(get_setting("PRESERVE_COMMENTS")),
                 )
             except Exception as e:
                 logger.error(f"CSS minification failed for {file_type}: {e}")
                 return content
         elif file_type == "js" and rjsmin:
             try:
-                preserve_comments = get_setting(
-                    "PRESERVE_COMMENTS", DEFAULT_SETTINGS["PRESERVE_COMMENTS"]
-                )
-                if preserve_comments is None:
-                    preserve_comments = True
                 return rjsmin.jsmin(
                     content,
-                    keep_bang_comments=bool(preserve_comments),
+                    keep_bang_comments=bool(get_setting("PRESERVE_COMMENTS")),
                 )
             except Exception as e:
                 logger.error(f"JS minification failed: {e}")
@@ -92,15 +82,12 @@ class MinificationMixin(FileProcessorMixin):
 
     def process_minification(self, paths):
         """Process minification for given paths."""
-        if not get_setting("ENABLED", DEFAULT_SETTINGS["ENABLED"]):
+        if not get_setting("ENABLED"):
             return {}
-        if not get_setting("MINIFY_FILES", DEFAULT_SETTINGS["MINIFY_FILES"]):
+        if not get_setting("MINIFY_FILES"):
             return {}
         minified_files = {}
-        max_files = (
-            get_setting("MAX_FILES_PER_RUN", DEFAULT_SETTINGS["MAX_FILES_PER_RUN"])
-            or 1000
-        )
+        max_files = get_setting("MAX_FILES_PER_RUN") or 1000
         processed_count = 0
 
         for path in paths:
@@ -150,18 +137,12 @@ class CompressionMixin(FileProcessorMixin):
 
     def process_compression(self, paths, allow_min=False):
         """Process compression for given paths."""
-        if not get_setting("ENABLED", DEFAULT_SETTINGS["ENABLED"]):
+        if not get_setting("ENABLED"):
             return {}
-        if not (
-            get_setting("GZIP_COMPRESSION", DEFAULT_SETTINGS["GZIP_COMPRESSION"])
-            or get_setting("BROTLI_COMPRESSION", DEFAULT_SETTINGS["BROTLI_COMPRESSION"])
-        ):
+        if not (get_setting("GZIP_COMPRESSION") or get_setting("BROTLI_COMPRESSION")):
             return {}
         compressed_files = {}
-        max_files = (
-            get_setting("MAX_FILES_PER_RUN", DEFAULT_SETTINGS["MAX_FILES_PER_RUN"])
-            or 1000
-        )
+        max_files = get_setting("MAX_FILES_PER_RUN") or 1000
         processed_count = 0
 
         for path in paths:
@@ -188,9 +169,7 @@ class CompressionMixin(FileProcessorMixin):
                 else:
                     relative_path = path
                 # Process Gzip compression
-                if get_setting(
-                    "GZIP_COMPRESSION", DEFAULT_SETTINGS["GZIP_COMPRESSION"]
-                ):
+                if get_setting("GZIP_COMPRESSION"):
                     gzipped_path = f"{relative_path}.gz"
                     gzipped_content = self.gzip_compress(content)
                     self._write_file_content(
@@ -198,9 +177,7 @@ class CompressionMixin(FileProcessorMixin):
                     )
                     compressed_files.setdefault(path, []).append(gzipped_path)
                 # Process Brotli compression
-                if get_setting(
-                    "BROTLI_COMPRESSION", DEFAULT_SETTINGS["BROTLI_COMPRESSION"]
-                ):
+                if get_setting("BROTLI_COMPRESSION"):
                     brotli_path = f"{relative_path}.br"
                     brotli_content = self.brotli_compress(content)
                     self._write_file_content(brotli_path, brotli_content, is_text=False)
@@ -216,9 +193,7 @@ class CompressionMixin(FileProcessorMixin):
         if not is_safe_path(path):
             logger.warning(f"Skipping unsafe path: {path}")
             return None
-        max_size = (
-            get_setting("MAX_FILE_SIZE", DEFAULT_SETTINGS["MAX_FILE_SIZE"]) or 10485760
-        )
+        max_size = get_setting("MAX_FILE_SIZE") or 10485760
         # Try storage methods first
         if self.exists(path):
             with self.open(path) as f:
@@ -251,11 +226,7 @@ class CompressionMixin(FileProcessorMixin):
     def gzip_compress(self, content):
         """Compress content using gzip."""
         buffer = io.BytesIO()
-        level = get_setting(
-            "COMPRESSION_LEVEL_GZIP", DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"]
-        )
-        if level is None:
-            level = DEFAULT_SETTINGS["COMPRESSION_LEVEL_GZIP"]
+        level = get_setting("COMPRESSION_LEVEL_GZIP")
         # Clamp level to valid range (0-9)
         level = max(0, min(9, level))
         with gzip.GzipFile(fileobj=buffer, mode="wb", compresslevel=level) as gz_file:
@@ -266,11 +237,7 @@ class CompressionMixin(FileProcessorMixin):
 
     def brotli_compress(self, content):
         """Compress content using brotli."""
-        level = get_setting(
-            "COMPRESSION_LEVEL_BROTLI", DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"]
-        )
-        if level is None:
-            level = DEFAULT_SETTINGS["COMPRESSION_LEVEL_BROTLI"]
+        level = get_setting("COMPRESSION_LEVEL_BROTLI")
         # Clamp level to valid range (0-11)
         level = max(0, min(11, level))
         if isinstance(content, str):
