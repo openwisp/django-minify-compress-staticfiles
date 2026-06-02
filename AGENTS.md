@@ -2,78 +2,43 @@
 
 ## Project Overview
 
-Django Minify Compress Staticfiles: A Django package for minifying and compressing static files (CSS/JS)
-with gzip and brotli support.
+`django-minify-compress-staticfiles` is a Django package for minifying and compressing static files with gzip and brotli support.
 
-## Development Setup
+Core code lives in `django_minify_compress_staticfiles/`:
 
-- Install dependencies: `pip install -e .`
-- For testing with all features: `pip install -e .[test]`
+- Package modules implement static file minification, compression, storage helpers, and path safety checks.
+- Tests live in `tests/` and `test_staticfiles/`.
 
-## Code Formatting
+## Source of Truth
 
-To format code, run:
+- Use `README.rst` for setup and package usage.
+- Use `.github/workflows/ci.yml` for CI-tested dependencies, QA/test commands, env vars, and supported Python/Django versions.
+- Use GitHub issue/PR templates when asked to open issues or PRs.
 
-```bash
-openwisp-qa-format
-```
+If instructions conflict, repository config and CI workflows win first, docs next, and this file is supplemental.
 
-## Testing
+## Development Notes
 
-Run tests with:
+- Keep changes focused. Avoid unrelated refactors and formatting churn.
+- Preserve public APIs, storage behavior, compression outputs, and path safety checks unless explicitly required.
+- Avoid unnecessary blank lines inside function and method bodies.
+- Update docs when behavior, settings, public APIs, setup steps, or supported versions change.
 
-```bash
-python runtests.py
-```
+## Testing and QA
 
-Coverage report:
+- Add or update tests for every behavior change.
+- For bug fixes, write the regression test first, run it against the unfixed code, confirm it fails for the expected reason, then implement the fix.
+- Run tests with `python runtests.py`; use `coverage run runtests.py && coverage report` when checking coverage.
+- Run `openwisp-qa-format` after editing.
+- Run `./run-qa-checks` before considering the change complete. Treat failures as blocking unless confirmed unrelated and reported.
+- Keep coverage above the repository threshold.
 
-```bash
-coverage run runtests.py
-coverage report
-```
+## Security Notes
 
-## QA Checks
-
-Run QA checks with:
-
-```bash
-./run-qa-checks
-```
-
-This validates:
-
-- Python code formatting (isort, black, flake8)
-- Blank endline checks
-- ReStructuredText syntax
-- Commit message format
-
-## General Guidelines
-
-- **Avoid unnecessary blank lines** - they bloat the code with no benefit. Use blank lines sparingly, only where PEP 8 requires them (e.g., between class methods, between imports and code).
-- **Keep test coverage above 90%** - every new feature must include tests.
-- Avoid other arbitrary formatting changes.
-- Run `./run-qa-checks` before committing to ensure compliance.
-
-## Code Review Checklist
-
-When reviewing changes, always watch out for:
-
-- Missing tests (aim for >90% coverage).
-- Unnecessary blank lines added.
-- Performance penalties.
-- Inconsistencies and duplication which can lead to maintenance overhead.
-- Security issues (e.g., no secrets in code, safe file path validation).
-- Path traversal vulnerabilities (ensure `is_safe_path()` is used).
-
-## Contributing Guidelines
-
-- [Follow OpenWISP contributing guidelines](https://openwisp.io/docs/dev/developer/contributing.html).
-- Ensure commit messages follow the format: `[type] Description` (e.g., `[fix] Resolved compression issue`).
+- Watch for path traversal, unsafe file handling, malformed static file paths, and secrets in code.
+- Preserve validation around safe paths, minified output paths, compressed file creation, and static file discovery.
+- Write comments and docstrings only when they explain why code is shaped a certain way. Put comments before the relevant code block instead of scattering them inside it.
 
 ## Troubleshooting
 
-- QA/format commands fail: Ensure Python virtualenv is active and dependencies are installed.
-- Tests fail: Check that `pip install -e .` was run.
-- Coverage issues: Run `coverage run runtests.py && coverage report` locally.
-- CI issues: Refer to `.github/workflows/ci.yml`.
+- If setup, QA, or tests fail, check docs first, then compare with CI. If commands diverge, follow CI.
