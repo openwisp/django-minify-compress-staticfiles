@@ -26,8 +26,7 @@ class IntegrationTests(TestCase):
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
 
-            css_content = (
-                """
+            css_content = """
             body {
                 margin: 0;
                 padding: 0;
@@ -37,9 +36,7 @@ class IntegrationTests(TestCase):
                 width: 100%;
                 max-width: 1200px;
             }
-            """
-                * 5
-            )  # Repeat to make it larger
+            """ * 5  # Repeat to make it larger
 
             test_file = os.path.join(self.static_root, "style.css")
             with open(test_file, "w") as f:
@@ -54,8 +51,7 @@ class IntegrationTests(TestCase):
         with self.settings(STATIC_ROOT=self.static_root):
             storage = MinicompressStorage()
 
-            js_content = (
-                """
+            js_content = """
             (function() {
                 'use strict';
                 function init() {
@@ -63,9 +59,7 @@ class IntegrationTests(TestCase):
                 }
                 init();
             })();
-            """
-                * 5
-            )
+            """ * 5
 
             test_file = os.path.join(self.static_root, "app.js")
             with open(test_file, "w") as f:

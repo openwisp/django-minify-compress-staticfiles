@@ -27,7 +27,8 @@ setup(
     ],
     extras_require={
         "test": [
-            "openwisp-utils[qa]~=1.2.2",
+            "openwisp-utils[qa] @ "
+            "https://github.com/openwisp/openwisp-utils/archive/refs/heads/master.tar.gz",
         ],
     },
     classifiers=[
