@@ -37,6 +37,7 @@ If instructions conflict, repository config and CI workflows win first, docs nex
 - Run tests with `python runtests.py`; use `coverage run runtests.py && coverage report` when checking coverage.
 - Run `openwisp-qa-format` after editing.
 - Keep coverage above the repository threshold.
+- Keep helpers and classes used by only one test method inside that method. Promote them to class or module scope only when genuinely reused.
 
 ## Security Notes
 
