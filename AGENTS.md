@@ -35,9 +35,11 @@ If instructions conflict, repository config and CI workflows win first, docs nex
 - When separate tests cover different cases of the same feature, share almost identical setup, and primarily vary in input or expected outcome, group them in one test method with subTest. Keep each subtest's setup explicit and independent, and retain separate test methods when cases exercise genuinely distinct behavior. Leave one blank line immediately before each with self.subTest(...): call.
 - Prefer method decorators for context managers that apply to the entire test method and would otherwise create unnecessary nesting, unless decorator ordering conflicts or the context manager requires data unavailable when the method is defined.
 - Run tests with `python runtests.py`; use `coverage run runtests.py && coverage report` when checking coverage.
+- For focused tests, call `./tests/manage.py test <pythonpath>` directly. Use `./runtests` only for the full suite because it runs multiple coverage and integration configurations and is not a focused-test runner.
 - Run `openwisp-qa-format` after editing.
 - Keep coverage above the repository threshold.
 - Keep helpers and classes used by only one test method inside that method. Promote them to class or module scope only when genuinely reused.
+- Keep tests quiet on success. When code under test writes to stdout or stderr, use `capture_stdout`, `capture_stderr`, or `capture_any_output` from `openwisp_utils.tests` and assert the expected output. Do not leave unasserted output, logs, or warnings in test runs.
 
 ## Django Notes
 
