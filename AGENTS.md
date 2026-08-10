@@ -15,12 +15,11 @@ Core code lives in `django_minify_compress_staticfiles/`:
 - Use `.github/workflows/ci.yml` for CI-tested dependencies, QA/test commands, env vars, and supported Python/Django versions.
 - Use GitHub issue/PR templates when asked to open issues or PRs.
 
-Follow the DRY principle: do not duplicate information or code across files.
-
 If instructions conflict, repository config and CI workflows win first, docs next, and this file is supplemental.
 
 ## Development Rules
 
+- Follow the DRY principle: do not duplicate information or code across files.
 - Respect module boundaries and encapsulation. The module that owns a model, stored state, lifecycle, or domain invariant must expose the cohesive public operation that reads or changes it. Integrations must use that operation, not write its fields, coordinate multi-step changes to its internal state, or depend on its storage representation. Prefer behavior-oriented public APIs over setters for internal flags. When an integration needs a missing capability, add it to the owning module with invariant tests, then call it from the integration.
 - Preserve public APIs, storage behavior, compression outputs, and path safety checks unless explicitly required.
 - Edit test sources and regenerate `test_staticfiles/` outputs instead of editing generated manifests or compressed assets directly.
