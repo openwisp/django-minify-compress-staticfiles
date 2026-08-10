@@ -19,7 +19,7 @@ Follow the DRY principle: do not duplicate information or code across files.
 
 If instructions conflict, repository config and CI workflows win first, docs next, and this file is supplemental.
 
-## Development Notes
+## Development Rules
 
 - Respect module boundaries and encapsulation. The module that owns a model, stored state, lifecycle, or domain invariant must expose the cohesive public operation that reads or changes it. Integrations must use that operation, not write its fields, coordinate multi-step changes to its internal state, or depend on its storage representation. Prefer behavior-oriented public APIs over setters for internal flags. When an integration needs a missing capability, add it to the owning module with invariant tests, then call it from the integration.
 - Preserve public APIs, storage behavior, compression outputs, and path safety checks unless explicitly required.
@@ -42,13 +42,13 @@ If instructions conflict, repository config and CI workflows win first, docs nex
 - Keep helpers and classes used by only one test method inside that method. Promote them to class or module scope only when genuinely reused.
 - Keep tests quiet on success. When code under test writes to stdout or stderr, use `capture_stdout`, `capture_stderr`, or `capture_any_output` from `openwisp_utils.tests` and assert the expected output. Do not leave unasserted output, logs, or warnings in test runs.
 
-## Django Notes
+## Django Rules
 
 - Build internal URLs with named URL patterns and `reverse()` or `reverse_lazy()`, including in tests. Use the appropriate namespace and URL arguments.
 - In the main behavior test for non-trivial, frequently called views, include `assertNumQueries()` with representative data to enforce an intentional query budget and catch N+1 queries. Use `AssertNumQueriesSubTestMixin` from `openwisp_utils.tests` where available: it records the query-count check as a subtest, so subsequent assertions in the method still run. Change the expected count only when the extra queries are necessary and understood.
 - Before defining a new class, view, URL, REST endpoint, or test layout, inspect analogous implementations in related OpenWISP modules. Match their established names, URL names, API shape, and test organization unless the behavior requires a difference.
 
-## Security Notes
+## Security Rules
 
 - Watch for path traversal, unsafe file handling, malformed static file paths, and secrets in code.
 - Preserve validation around safe paths, minified output paths, compressed file creation, and static file discovery.
