@@ -8,8 +8,16 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Test Python ${{ matrix.python-version }} with Django ${{ matrix.django-version }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -31,15 +39,17 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache pip packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ matrix.django-version }}-${{ hashFiles('**/setup.py') }}
@@ -50,9 +60,11 @@ jobs:
 
       - name: Install Python dependencies
         id: deps
+        env:
+          DJANGO_VERSION: ${{ matrix.django-version }}
         run: |
           python -m pip install --upgrade pip
-          pip install ${{ matrix.django-version }}
+          pip install "$DJANGO_VERSION"
           pip install coverage
           pip install -e .
 
@@ -65,7 +77,7 @@ jobs:
           coverage report
 
       - name: Upload coverage to Coveralls
-        uses: coverallsapp/github-action@v2
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           file: ./coverage.xml
@@ -73,14 +85,16 @@ jobs:
           parallel: true
 
   qa:
+    name: Run QA checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.12"
 
@@ -93,12 +107,13 @@ jobs:
         run: ./run-qa-checks
 
   finish:
+    name: Finalize Coveralls report
     needs: test
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Coveralls Finished
-        uses: coverallsapp/github-action@v2
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
