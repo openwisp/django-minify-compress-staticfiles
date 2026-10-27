@@ -23,7 +23,6 @@ jobs:
       github.event.workflow_run.event == 'pull_request'
     permissions:
       pull-requests: read # Locates the pull request associated with the failed workflow run.
-      actions: read # Queries workflow runs when the event payload lacks a PR number.
     outputs:
       pr_number: ${{ steps.pr.outputs.number }}
       pr_author: ${{ steps.pr.outputs.author }}
@@ -35,6 +34,8 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER_PAYLOAD: ${{ github.event.workflow_run.pull_requests[0].number }}
           EVENT_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          EVENT_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           emit_pr() {
             local pr_number="$1"
@@ -54,14 +55,26 @@ jobs:
           fi
           HEAD_SHA="$EVENT_HEAD_SHA"
           echo "Payload empty. Searching for PR via Commits API..."
-          PR_NUMBER=$(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" -q '.[0].number' 2>/dev/null || true)
+          if PULL_REQUESTS=$(gh api --paginate "repos/$REPO/commits/$HEAD_SHA/pulls?per_page=100" 2>/dev/null); then
+            PR_NUMBER=$(printf '%s\n' "$PULL_REQUESTS" |
+              jq --slurp --raw-output '[.[][] | select(.head.sha == env.EVENT_HEAD_SHA and .head.repo.full_name == env.EVENT_HEAD_REPOSITORY and .head.ref == env.EVENT_HEAD_BRANCH)] | if length == 1 then .[0].number else empty end' \
+              2>/dev/null || true)
+          else
+            PR_NUMBER=""
+          fi
           if [ -n "$PR_NUMBER" ] && [ "$PR_NUMBER" != "null" ]; then
              echo "Found PR #$PR_NUMBER using Commits API."
              emit_pr "$PR_NUMBER"
              exit 0
           fi
           echo "API lookup failed/empty. Scanning open PRs for matching head SHA..."
-          PR_NUMBER=$(gh pr list --repo "$REPO" --state open --limit 100 --json number,headRefOid --jq ".[] | select(.headRefOid == \"$HEAD_SHA\") | .number" | head -n 1)
+          if OPEN_PRS=$(gh pr list --repo "$REPO" --state open --limit 100 --json number,headRefOid,headRefName,headRepository 2>/dev/null); then
+            PR_NUMBER=$(printf '%s\n' "$OPEN_PRS" |
+              jq --raw-output --arg head_sha "$EVENT_HEAD_SHA" --arg head_repo "$EVENT_HEAD_REPOSITORY" --arg head_branch "$EVENT_HEAD_BRANCH" '[.[] | select(.headRefOid == $head_sha and .headRepository.nameWithOwner == $head_repo and .headRefName == $head_branch)] | if length == 1 then .[0].number else empty end' \
+              2>/dev/null || true)
+          else
+            PR_NUMBER=""
+          fi
           if [ -n "$PR_NUMBER" ]; then
              echo "Found PR #$PR_NUMBER by scanning open PRs."
              emit_pr "$PR_NUMBER"

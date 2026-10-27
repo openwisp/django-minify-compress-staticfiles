@@ -25,6 +25,8 @@ jobs:
       pull-requests: read # Resolves the PR associated with the triggering commit.
     outputs:
       pr_number: ${{ steps.metadata.outputs.pr_number }}
+      head_sha: ${{ steps.approval.outputs.head_sha }}
+      base_sha: ${{ steps.approval.outputs.base_sha }}
     steps:
       - name: Download PR metadata
         id: download
@@ -36,59 +38,11 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
         continue-on-error: true
 
-      - name: Resolve triggering pull request
-        id: association
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          RESPONSE=$(curl --fail --silent --show-error \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/$REPOSITORY/commits/$HEAD_SHA/pulls?per_page=100")
-          mapfile -t PR_NUMBERS < <(jq -r '.[].number' <<< "$RESPONSE")
-          if [ "${#PR_NUMBERS[@]}" -ne 1 ]; then
-            echo "::error::Expected exactly one pull request for the triggering commit"
-            exit 1
-          fi
-          PR_NUMBER=${PR_NUMBERS[0]}
-          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
-            echo "::error::Invalid associated PR number: $PR_NUMBER"
-            exit 1
-          fi
-          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
-
-      - name: Verify current eligible approval
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.association.outputs.number }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          PR=$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")
-          HEAD_SHA=$(jq -er '.head.sha' <<< "$PR")
-          REVIEWS=$(gh api --paginate --slurp "repos/$REPOSITORY/pulls/$PR_NUMBER/reviews?per_page=100")
-          if ! jq -e --arg head_sha "$HEAD_SHA" '
-            .[][] | select(
-              .state == "APPROVED" and
-              .commit_id == $head_sha and
-              (.author_association == "OWNER" or
-               .author_association == "MEMBER" or
-               .author_association == "COLLABORATOR")
-            )
-          ' <<< "$REVIEWS" > /dev/null; then
-            echo "::error::The pull request has no current eligible approval"
-            exit 1
-          fi
-
       - name: Read PR metadata
         if: steps.download.outcome == 'success'
         id: metadata
         env:
           ARTIFACT_DIR: ${{ runner.temp }}/changelog-metadata
-          EXPECTED_PR_NUMBER: ${{ steps.association.outputs.number }}
         run: |
           PR_NUMBER_FILE="$ARTIFACT_DIR/pr_number"
           if [ ! -d "$ARTIFACT_DIR" ] || [ -L "$ARTIFACT_DIR" ]; then
@@ -110,26 +64,161 @@ jobs:
             echo "::error::Invalid PR number: $PR_NUMBER"
             exit 1
           fi
-          if [ -z "$EXPECTED_PR_NUMBER" ] || [ "$PR_NUMBER" != "$EXPECTED_PR_NUMBER" ]; then
-            echo "::error::Metadata PR number does not match the triggering pull request"
-            exit 1
-          fi
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
+      - name: Verify triggering pull request
+        if: steps.download.outcome == 'success'
+        id: association
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ steps.metadata.outputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          PR=$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")
+          HEAD_SHA=$(jq -er '.head.sha' <<< "$PR")
+          BASE_REPOSITORY=$(jq -er '.base.repo.full_name' <<< "$PR")
+          if [ "$HEAD_SHA" != "$EXPECTED_HEAD_SHA" ] || [ "$BASE_REPOSITORY" != "$REPOSITORY" ]; then
+            echo "::error::Metadata PR does not match the triggering review run"
+            exit 1
+          fi
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Verify current eligible approval
+        if: steps.download.outcome == 'success'
+        id: approval
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_HEAD_SHA: ${{ steps.association.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.metadata.outputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          PR=$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")
+          HEAD_SHA=$(jq -er '.head.sha' <<< "$PR")
+          BASE_SHA=$(jq -er '.base.sha' <<< "$PR")
+          if [ "$HEAD_SHA" != "$EXPECTED_HEAD_SHA" ]; then
+            echo "::error::The pull request head changed while verifying approval"
+            exit 1
+          fi
+          REVIEWS=$(gh api --paginate --slurp "repos/$REPOSITORY/pulls/$PR_NUMBER/reviews?per_page=100")
+          if ! jq -e --arg head_sha "$HEAD_SHA" '
+            [.[][] | select(.state != "COMMENTED")]
+            | group_by(.user.login)
+            | map(max_by([.submitted_at // "", .id]))
+            | any(.[];
+              .state == "APPROVED" and
+              .commit_id == $head_sha and
+              (.author_association == "OWNER" or
+               .author_association == "MEMBER" or
+               .author_association == "COLLABORATOR")
+            )
+          ' <<< "$REVIEWS" > /dev/null; then
+            echo "::error::The pull request has no current eligible approval"
+            exit 1
+          fi
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+
   changelog:
+    name: Generate changelog entry
     needs: fetch-metadata
     if: >
       github.repository == 'openwisp/django-minify-compress-staticfiles' &&
-      needs.fetch-metadata.outputs.pr_number != ''
+      needs.fetch-metadata.outputs.pr_number != '' &&
+      needs.fetch-metadata.outputs.head_sha != '' &&
+      needs.fetch-metadata.outputs.base_sha != ''
     concurrency:
       group: changelog-runner-${{ github.repository }}-${{ needs.fetch-metadata.outputs.pr_number }}
       cancel-in-progress: true
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-    uses: openwisp/openwisp-actions/.github/workflows/reusable-bot-changelog.yml@5072c81386b436b073b67bc7918cec647f9e3414 # 0.1.0
-    with:
-      pr_number: ${{ needs.fetch-metadata.outputs.pr_number }}
-    secrets:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      OPENWISP_BOT_APP_ID: ${{ secrets.OPENWISP_BOT_APP_ID }}
-      OPENWISP_BOT_PRIVATE_KEY: ${{ secrets.OPENWISP_BOT_PRIVATE_KEY }}
+    steps:
+      - name: Checkout trusted repository revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Prepare approved pull request diff
+        env:
+          APPROVED_HEAD_SHA: ${{ needs.fetch-metadata.outputs.head_sha }}
+          APPROVED_BASE_SHA: ${{ needs.fetch-metadata.outputs.base_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$APPROVED_HEAD_SHA" =~ ^[0-9a-f]{40}$ && "$APPROVED_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Invalid approved pull request reference"
+            exit 1
+          fi
+
+          COMPARE="repos/$REPOSITORY/compare/$APPROVED_BASE_SHA...$APPROVED_HEAD_SHA?per_page=100"
+          gh api "$COMPARE" > "$RUNNER_TEMP/changelog-comparison.json"
+          TOTAL_COMMITS=$(jq -er '.total_commits' "$RUNNER_TEMP/changelog-comparison.json")
+          COMMIT_COUNT=$(jq -er '.commits | length' "$RUNNER_TEMP/changelog-comparison.json")
+          FILE_COUNT=$(jq -er '.files | length' "$RUNNER_TEMP/changelog-comparison.json")
+          if [ "$TOTAL_COMMITS" -ne "$COMMIT_COUNT" ] || [ "$FILE_COUNT" -ge 300 ]; then
+            echo "::error::GitHub returned an incomplete pull request comparison"
+            exit 1
+          fi
+
+          gh api -H 'Accept: application/vnd.github.diff' "$COMPARE" > "$RUNNER_TEMP/changelog-generator.diff"
+          jq -r '.commits | reverse | .[] | "\(.sha[0:7]) \(.commit.message | split("\n")[0])"' \
+            "$RUNNER_TEMP/changelog-comparison.json" > "$RUNNER_TEMP/changelog-generator.commits"
+
+          cat > "$RUNNER_TEMP/git" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          case "${1:-}" in
+            diff)
+              cat "$RUNNER_TEMP/changelog-generator.diff"
+              ;;
+            log)
+              cat "$RUNNER_TEMP/changelog-generator.commits"
+              ;;
+            *)
+              exec /usr/bin/git "$@"
+              ;;
+          esac
+          SH
+          chmod +x "$RUNNER_TEMP/git"
+
+      - name: Checkout pinned changelog generator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: openwisp/openwisp-actions
+          ref: 5072c81386b436b073b67bc7918cec647f9e3414
+          path: _actions/openwisp-actions
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+
+      - name: Install changelog generator dependencies
+        env:
+          ACTION_PATH: ${{ github.workspace }}/_actions/openwisp-actions/.github/actions/bot-changelog-generator
+        run: pip install -r "$ACTION_PATH/../../../requirements.txt"
+
+      - name: Generate App Token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        id: app-token
+        with:
+          app-id: ${{ secrets.OPENWISP_BOT_APP_ID }}
+          private-key: ${{ secrets.OPENWISP_BOT_PRIVATE_KEY }}
+          permission-issues: read
+          permission-pull-requests: write
+
+      - name: Generate changelog
+        env:
+          ACTION_PATH: ${{ github.workspace }}/_actions/openwisp-actions/.github/actions/bot-changelog-generator
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          PR_NUMBER: ${{ needs.fetch-metadata.outputs.pr_number }}
+          REPO_NAME: ${{ github.repository }}
+        run: PATH="$RUNNER_TEMP:$PATH" python "$ACTION_PATH/generate_changelog.py"
