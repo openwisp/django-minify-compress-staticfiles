@@ -47,7 +47,7 @@ Install from PyPI:
 Configuration
 -------------
 
-For **Django 4.2+**, update your ``STORAGES`` setting:
+Update your ``STORAGES`` setting:
 
 .. code-block:: python
 
@@ -59,12 +59,6 @@ For **Django 4.2+**, update your ``STORAGES`` setting:
             "BACKEND": "django_minify_compress_staticfiles.storage.MinicompressStorage",
         },
     }
-
-For **Django < 4.2**, use the legacy setting:
-
-.. code-block:: python
-
-    STATICFILES_STORAGE = "django_minify_compress_staticfiles.storage.MinicompressStorage"
 
 Settings
 --------
@@ -222,8 +216,8 @@ Dependencies
 
 **Required**:
 
-- Django >= 4.2
-- Python >= 3.10
+- Django >= 5.2
+- Python >= 3.11
 - ``brotli`` >= 1.0.0
 - ``rjsmin`` >= 1.2.0
 - ``rcssmin`` >= 1.1.0
