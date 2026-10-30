@@ -770,7 +770,14 @@ class MinicompressStorageTests(TestCase):
         """
         with self.settings(
             STATIC_ROOT=self.static_root,
-            STATICFILES_STORAGE="django_minify_compress_staticfiles.storage.MinicompressStorage",
+            STORAGES={
+                "default": {
+                    "BACKEND": "django.core.files.storage.FileSystemStorage",
+                },
+                "staticfiles": {
+                    "BACKEND": "django_minify_compress_staticfiles.storage.MinicompressStorage",
+                },
+            },
         ):
             # Create a CSS file
             css_file = os.path.join(self.static_root, "test.css")
@@ -780,9 +787,8 @@ class MinicompressStorageTests(TestCase):
             call_command("collectstatic", "--noinput", verbosity=0)
             # Read the manifest
             manifest_path = os.path.join(self.static_root, "staticfiles.json")
-            if os.path.exists(manifest_path):
-                with open(manifest_path, "r") as f:
-                    manifest = json.load(f)
-                # Verify the manifest has the expected structure
-                self.assertIn("paths", manifest)
-                self.assertIn("version", manifest)
+            with open(manifest_path, "r") as f:
+                manifest = json.load(f)
+            # Verify the manifest has the expected structure
+            self.assertIn("paths", manifest)
+            self.assertIn("version", manifest)
