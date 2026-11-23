@@ -1,5 +1,6 @@
 """Test the shared CI and test entry-point conventions."""
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -54,3 +55,14 @@ class CiStandardizationTests(TestCase):
         self.assertIn(
             "github.event.workflow_run.path == '.github/workflows/ci.yml'", bot
         )
+
+    def test_uses_test_settings_despite_caller_environment(self):
+        result = subprocess.run(
+            [str(SCRIPT), "tests.test_basic.BasicTests.test_import_storage"],
+            cwd=SCRIPT.parent,
+            env={**os.environ, "DJANGO_SETTINGS_MODULE": "untrusted_settings"},
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Ran 1 test", result.stderr)

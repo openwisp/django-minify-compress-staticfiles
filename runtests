@@ -18,7 +18,8 @@ if __name__ == "__main__":
         ):
             print(f"Unsupported test argument: {label}", file=sys.stderr)
             sys.exit(2)
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
+    # Do not let the caller select a different settings module to execute.
+    os.environ["DJANGO_SETTINGS_MODULE"] = "tests.settings"
     django.setup()
     # unittest calls named objects, including classes that are not tests.
     for label in sys.argv[1:]:
