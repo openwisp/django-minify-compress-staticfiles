@@ -8,8 +8,7 @@ from importlib import import_module
 from unittest import TestCase
 
 import django
-from django.conf import settings
-from django.test.utils import get_runner
+from django.core.management import execute_from_command_line
 
 if __name__ == "__main__":
     # Django calls the named object, so only accept test modules, classes, or methods.
@@ -31,10 +30,6 @@ if __name__ == "__main__":
         if not isinstance(candidate, type) or not issubclass(candidate, TestCase):
             print(f"Unsupported test argument: {label}", file=sys.stderr)
             sys.exit(2)
-    TestRunner = get_runner(settings)
-    test_runner = TestRunner()
-    # Get test modules from command line args or default to all
+    # Keep Django's standard test command while limiting what arguments may invoke.
     test_labels = sys.argv[1:] or ["tests"]
-    failures = test_runner.run_tests(test_labels)
-    if failures:
-        sys.exit(1)
+    execute_from_command_line([sys.argv[0], "test", *test_labels])

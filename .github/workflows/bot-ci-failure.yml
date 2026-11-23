@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.repository == 'openwisp/django-minify-compress-staticfiles' &&
-      github.event.workflow_run.name == 'Django Minify Compress StaticFiles CI' &&
+      github.event.workflow_run.path == '.github/workflows/ci.yml' &&
       github.event.workflow_run.conclusion == 'failure' &&
       github.event.workflow_run.event == 'pull_request'
     permissions:
