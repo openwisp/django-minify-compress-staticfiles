@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+"""Run the test suite or selected Django test labels."""
+
+import os
+import re
+import sys
+from importlib import import_module
+from unittest import TestCase
+
+import django
+from django.core.management import execute_from_command_line
+
+if __name__ == "__main__":
+    # Django calls the named object, so only accept test modules, classes, or methods.
+    for label in sys.argv[1:]:
+        if label != "tests" and not re.fullmatch(
+            r"tests\.test_\w+(?:\.[A-Z]\w*(?:\.test_\w+)?)?", label
+        ):
+            print(f"Unsupported test argument: {label}", file=sys.stderr)
+            sys.exit(2)
+    # Do not let the caller select a different settings module to execute.
+    os.environ["DJANGO_SETTINGS_MODULE"] = "tests.settings"
+    django.setup()
+    # unittest calls named objects, including classes that are not tests.
+    for label in sys.argv[1:]:
+        parts = label.split(".")
+        if len(parts) < 3:
+            continue
+        module = import_module(".".join(parts[:2]))
+        candidate = getattr(module, parts[2], None)
+        if not isinstance(candidate, type) or not issubclass(candidate, TestCase):
+            print(f"Unsupported test argument: {label}", file=sys.stderr)
+            sys.exit(2)
+    # Keep Django's standard test command while limiting what arguments may invoke.
+    test_labels = sys.argv[1:] or ["tests"]
+    execute_from_command_line([sys.argv[0], "test", *test_labels])

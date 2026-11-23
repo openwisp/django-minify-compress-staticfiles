@@ -28,14 +28,14 @@ If instructions conflict, repository config and CI workflows win first, docs nex
 - Prefer short, precise names that rely on their nearest meaningful scope. Do not repeat a feature, domain object, or namespace already named by the containing module, class, or function. For example, prefer `EstimatedLocation.refresh()` over `EstimatedLocation.refresh_estimated_location()`. Repeat that context only when the name is used outside that scope or is needed to distinguish genuinely different concepts. When a concise name cannot express a necessary distinction, use a concise docstring to describe it rather than encoding it in an excessively long name.
 - Before adding a comment or docstring, ask whether it conveys information a reader cannot reasonably infer from clear code, names, and surrounding scope. Add a concise comment when it explains a non-obvious reason, constraint, compatibility or security requirement, side effect, or unavoidable complexity. In opaque syntax or domain-specific code, especially shell scripts, a comment may also explain what the code does. Do not add comments that merely restate adjacent code one-to-one.
 - Update docs when behavior, settings, public APIs, setup steps, or supported versions change.
+- Add CI dependencies to `./install-ci-deps.sh` and cache them. Keep cache inputs in sync with the installer and dependency files. Follow the shared structure and internal naming in `.github/workflows/ci.yml` so OpenWISP automation works across repositories.
 
 ## Testing and QA
 
 - For bug fixes, write the regression test first, run it against the unfixed code, confirm it fails for the expected reason, then implement the fix.
 - When separate tests cover different cases of the same feature, share almost identical setup, and primarily vary in input or expected outcome, group them in one test method with `subTest`. Keep each subtest's setup explicit and independent, and retain separate test methods when cases exercise genuinely distinct behavior. Leave one blank line before each with `self.subTest(...)` statement only when a test method contains multiple such statements. Do not add a blank line for a single `subTest` statement inside a loop.
 - Prefer method decorators for context managers that apply to the entire test method and would otherwise create unnecessary nesting, unless decorator ordering conflicts or the context manager requires data unavailable when the method is defined.
-- Run tests with `python runtests.py`; use `coverage run runtests.py && coverage report` when checking coverage.
-- For focused tests, call `./tests/manage.py test <pythonpath>` directly. Use `./runtests` only for the full suite because it runs multiple coverage and integration configurations and is not a focused-test runner.
+- Use `./runtests` as the test entry point in CI, documentation, and local work. Pass a Django test label to run a focused test. Use `coverage run ./runtests && coverage report` when checking coverage. Enforce an explicit allowlist of reviewed, safe flags and reject all others: test runner options can execute code outside the selected tests.
 - Run `openwisp-qa-format` after editing.
 - Keep coverage above the repository threshold.
 - Keep helpers and classes used by only one test method inside that method. Promote them to class or module scope only when genuinely reused.
