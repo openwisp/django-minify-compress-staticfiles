@@ -1,7 +1,7 @@
 Django Minify Compress StaticFiles
 ==================================
 
-.. image:: https://github.com/openwisp/django-minify-compress-staticfiles/workflows/CI/badge.svg
+.. image:: https://github.com/openwisp/django-minify-compress-staticfiles/actions/workflows/ci.yml/badge.svg
     :target: https://github.com/openwisp/django-minify-compress-staticfiles/actions
     :alt: CI build status
 
@@ -244,3 +244,16 @@ Support
 .. _issue tracker: https://github.com/openwisp/django-minify-compress-staticfiles/issues
 
 .. _openwisp support: https://openwisp.org/support/
+
+Tests
+-----
+
+Run the test suite with ``./runtests``. To run one test, pass its Django
+test label:
+
+.. code-block:: shell
+
+    ./runtests tests.test_basic.BasicTests.test_import_storage
+
+The entry point accepts labels for modules, classes, and methods in the
+``tests`` package.
