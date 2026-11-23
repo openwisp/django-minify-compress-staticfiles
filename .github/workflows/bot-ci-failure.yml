@@ -2,7 +2,7 @@ name: CI Failure Bot
 
 on:
   workflow_run: # zizmor: ignore[dangerous-triggers] Privileged analysis follows failed PR CI and treats PR code and logs as data only.
-    workflows: ["CI"]
+    workflows: ["Django Minify Compress StaticFiles CI"]
     types:
       - completed
 
